@@ -1,0 +1,54 @@
+Last point of work: Got the framework of damons landmine to work.
+
+TODO
+----
+
+Architecture
+    - Consider adding new interfaces to better represent abilities
+    - Get rid of free variables in code and name them
+
+Implementing Click Service
+
+Implementing cooldown service  
+
+Implement targetting service
+    - Update virtual projectiles to avoid hitting your own shikigami (maybe)
+
+Implementing Projectiles
+    - Consider removing projectiles from the projectiles array list in the projectile logger
+    - Consider changing projectile hit callbacks to an abstract class instead of interface
+
+Implementing server mechanics
+    - make it so that on death the cooldowns persist and players are given their items back. Or make it keep inventory
+    - player abilities should be canceled on their death. This would require for abilities to have a cancel function
+
+Implementing abilities
+    - Find a consistent way to make ability parameters variables so they can be targeted by modifiers
+    - May need to find way to change cooldowns for ability modifiers
+    - Need to make it so that when a player dies some of their task can be killed as well
+    - create config file that plugin reads from when using abilities so that i do not need to recompile everytime
+    - add cooldown reduction to nathans abilities on buff
+    - centralize knockback stuff
+    - decide if ability callbacks will ALL become subclasses of ability 
+    - find out if the cooldowns for abilities can he handled outside of the abilities and we can simply call activate()
+
+Implementing Effects
+    - considering rewritting some of these effects to not spawn a brand new effect each time but instead to have 1
+    - consider adding less particles to effects
+
+Implementing ability logger
+    - consider changing how we handle repeaters. Instead, abilities will keep a reference to their repeater and if they
+    need to use it again, they simple revive the repeater by updating its remaining ticks
+
+Damon Changes
+
+Muhammad changes 
+    - Increase the size of meltdown of waves / increase damage / increase speed
+
+Ali Changes
+
+Nathan Changes
+    - adjust strong leap so that it doenst always go super high
+    - adjust strong leap so that it is more responsive to the time between use tweaks
+    - reduce cooldowns of abilities while using ascended
+    - increase the speed of the orb
