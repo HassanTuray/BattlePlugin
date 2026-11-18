@@ -37,8 +37,8 @@ import com.hfturay.battleplugin.shikigamiservice.Targeting;
 @RequiresSettings({ "cooldown", "health", "damage", "attack-range", "attack-interval-ticks", "target-range",
     "follow-distance", "leash-distance", "speed", "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks", "flame-interval-ticks", "attack-hit-delay-ticks" })
 public class SummonWarrior extends Ability {
-    /** The BetterModel model: plugins/BetterModel/models/demon_knight.bbmodel (BetterModel installs it itself). */
-    private static final String MODEL = "demon_knight";
+    /** The BetterModel model: plugins/BetterModel/models/mahoraga.bbmodel (made by models/tools/make_mahoraga.js, copied by deploy). */
+    private static final String MODEL = "mahoraga";
 
     public SummonWarrior(BattlePlayer owner) {
         super(owner);
@@ -131,12 +131,12 @@ public class SummonWarrior extends Ability {
                 gear.setBootsDropChance(0f);
                 gear.setItemInMainHandDropChance(0f);
             },
-            // Drawn as the demon knight model (BetterModel). Without that plugin it stays an armoured zombie.
-            // The model's animations: idle, walk, damage and death play on their own; these are the ones we trigger.
+            // Drawn as the Mahoraga model (BetterModel). Without that plugin it stays an armoured zombie.
+            // The model's animations: idle, walk and death play on their own; these are the ones we trigger.
             MODEL,
             Map.of(
-                "attack", List.of("hammer_attack_1", "hammer_attack_2", "hammer_attack_3"),
-                "flame", List.of("shield_attack_2")),
+                "attack", List.of("attack"),
+                "flame", List.of("flame")),
             settingInt("attack-hit-delay-ticks"));
     }
 }

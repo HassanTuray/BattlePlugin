@@ -322,7 +322,7 @@ SummonWarrior:
   damage: 4                   # health points per hit (4 = 2 hearts)
   attack-range: 1.5           # how close it must be to hit (blocks, edge to edge)
   attack-interval-ticks: 20   # time between hits (20 = 1 second)
-  attack-hit-delay-ticks: 12  # the hit lands this long after its attack animation starts (matches the swing; 0 = at once)
+  attack-hit-delay-ticks: 8   # the hit lands this long after its attack animation starts (the Mahoraga blade lands at 0.42 s = 8 ticks; 0 = at once)
   target-range: 12            # how far it looks for enemies
   follow-distance: 4          # stays within this many blocks of you when it has no target
   leash-distance: 32          # farther than this from you and it is teleported to you

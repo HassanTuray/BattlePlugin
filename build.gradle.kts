@@ -52,8 +52,17 @@ val checkServerDir = tasks.register("checkServerDir") {
     }
 }
 
+// Custom shikigami models (made by models/tools/*.js) go into BetterModel's folder. Run /bettermodel reload afterwards.
+tasks.register<Copy>("deployModels") {
+    dependsOn(checkServerDir)
+    from("models") {
+        include("*.bbmodel")
+    }
+    into("$serverDir/plugins/BetterModel/models")
+}
+
 tasks.register<Copy>("deploy") {
-    dependsOn(checkServerDir, "build")
+    dependsOn(checkServerDir, "build", "deployModels")
     from(layout.buildDirectory.dir("libs")) {
         include("${project.name}-${project.version}.jar")
     }
