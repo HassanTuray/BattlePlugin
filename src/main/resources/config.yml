@@ -6,3 +6,13 @@ player:
   base-health: 40
   # Food level players are kept at, because hunger is disabled. Allowed: 0 to 20.
   food-level: 16
+
+# The resource pack with the shikigami model textures (BetterModel). Players are sent it when they join.
+# url must be a direct download of the zip. The plugin downloads it itself to work out its hash, so after the zip
+# at that link changes, "/kits reload" is all that is needed. Leave url empty to send no pack.
+# To update it: copy plugins/BetterModel/build.zip to resourcepack/BetterModel.zip in the project and push it.
+resource-pack:
+  url: "https://raw.githubusercontent.com/HassanTuray/BattlePlugin/main/resourcepack/BetterModel.zip"
+  # true = players must accept the pack to stay on the server
+  required: true
+  prompt: "Textures for the shikigami models"

@@ -22,6 +22,7 @@ import com.hfturay.battleplugin.loadoutservice.LoadoutStore;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.loggerservice.DeathLogger;
 import com.hfturay.battleplugin.loggerservice.PlayerLogger;
+import com.hfturay.battleplugin.resourcepackservice.ResourcePackService;
 import com.hfturay.battleplugin.particleservice.ParticleService;
 import com.hfturay.battleplugin.projectileservice.ProjectileService;
 import com.hfturay.battleplugin.serversetup.HungerLogger;
@@ -44,6 +45,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
     private AbilityFactory abilityFactory;
     private LoadoutStore loadoutStore;
     private PluginSettings settings;
+    private ResourcePackService resourcePackService;
     private KitService kitService;
     private AbilityTuning abilityTuning;
     private CooldownService cooldownService;
@@ -72,6 +74,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         saveDefaultConfig();
         settings = new PluginSettings();
         settings.load(getConfig(), getLogger());
+        resourcePackService = new ResourcePackService(this);
         File kitsFile = new File(getDataFolder(), "kits.yml");
         if (!kitsFile.exists()) {
             saveResource("kits.yml", false);
@@ -129,6 +132,8 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         pm.registerEvents(new PlayerLogger(), this);
         pm.registerEvents(inputService, this);
         pm.registerEvents(shikigamiService, this);
+        pm.registerEvents(resourcePackService, this);
+        resourcePackService.reload(getConfig());
         pm.registerEvents(visualService, this);
         pm.registerEvents(new DeathLogger(), this);
         pm.registerEvents(new ItemProtection(), this);
@@ -239,6 +244,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
     public void reloadSettings() {
         reloadConfig();
         settings.load(getConfig(), getLogger());
+        resourcePackService.reload(getConfig());
     }
 
     /**
