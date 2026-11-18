@@ -3,3 +3,32 @@ main: com.hfturay.battleplugin.BattlePlugin
 version: 1.0.0
 api-version: 1.21
 depend: [EffectLib]
+softdepend: [BetterModel]
+
+commands:
+  load:
+    description: Load a skill onto a player, or copy one player's kit to another
+    usage: "/load <skill> <player>  or  /load <player1> <player2>"
+    permission: battleplugin.admin
+  remove:
+    description: Remove a skill from a player, or remove the abilities another player has
+    usage: "/remove <skill> <player>  or  /remove <player1> <player2>"
+    permission: battleplugin.admin
+  clearabilities:
+    description: Remove every ability from a player
+    usage: "/clearabilities <player>"
+    permission: battleplugin.admin
+  clearcooldowns:
+    description: Make every ability usable right now (no player = yourself)
+    usage: "/clearcooldowns [player]"
+    permission: battleplugin.admin
+
+  kits:
+    description: Reload config.yml and kits.yml, or give a player their kit
+    usage: "/kits reload  or  /kits apply <player>  or  /kits list"
+    permission: battleplugin.admin
+
+permissions:
+  battleplugin.admin:
+    description: Use the ability testing commands
+    default: op

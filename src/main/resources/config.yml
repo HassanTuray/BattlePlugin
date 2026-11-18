@@ -1,0 +1,8 @@
+# BattlePlugin settings.
+# Changes are picked up by "/kits reload" (or a restart). Health and food apply the next time a player joins or respawns.
+
+player:
+  # Max health every player gets (20 = ten hearts). Allowed: 2 to 1024.
+  base-health: 40
+  # Food level players are kept at, because hunger is disabled. Allowed: 0 to 20.
+  food-level: 16

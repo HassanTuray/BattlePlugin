@@ -1,12 +1,7 @@
 package com.hfturay.battleplugin.ability.abilities.aliabilities;
 
-import org.apache.commons.lang3.text.WordUtils;
-import org.bukkit.Color;
-import org.bukkit.Fluid;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -14,90 +9,112 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
+import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.abilityschedulerservice.ScheduledAbilityTask;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.particleservice.Anchor;
+import com.hfturay.battleplugin.particleservice.ParticleHandle;
 import com.hfturay.battleplugin.targetingservice.HitScan;
-
-import de.slikey.effectlib.EffectManager;
-import de.slikey.effectlib.effect.LineEffect;
+import com.hfturay.battleplugin.targetingservice.Targets;
+import com.hfturay.battleplugin.visualservice.VisualAnchor;
+import com.hfturay.battleplugin.visualservice.VisualHandle;
 
 public class LaserRepeater extends ScheduledAbilityTask {
     private BattlePlayer owner;
     private double damage;
     private double range;
 
-    public LaserRepeater(int duration, BattlePlayer owner, double damage, double range) {
-        super(duration);
-        
+    // Where the beam currently ends. Refreshed once per tick here, so the particle service can read it for free.
+    private Location beamEnd;
+    private ParticleHandle beam;       // the purple swirl
+    private VisualHandle body;         // the light blue beam itself
+
+    public LaserRepeater(int duration, Ability ability, BattlePlayer owner, double damage, double range) {
+        super(duration, ability);
+
         this.owner = owner;
         this.damage = damage;
         this.range = range;
     }
 
     @Override
-    public boolean update() {
+    protected void onTick() {
         FluidCollisionMode neverCollide = FluidCollisionMode.NEVER;
-        Entity target = HitScan.HitScanEntities(owner, range, neverCollide);
-        playParticleEffect(target);
-
-        if (target == null) {
-            return super.update();
-        }
+        Entity target = HitScan.HitScanEntitiesQuietly(owner, range, neverCollide);
+        updateBeam();
 
         if (target instanceof Damageable) {
-            ((Damageable)target).damage(damage);
+            BattlePlugin.getInstance().getDamageService().damage(owner, target, damage);
         }
-
-        return super.update();
     }
 
-    public void playParticleEffect(Entity target) {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        LineEffect effect = new LineEffect(effectManager); 
-
+    private void updateBeam() {
         Player player = owner.getPlayer();
         Location eye = player.getEyeLocation();
-        Vector direction = eye.getDirection().normalize(); 
+        Vector direction = eye.getDirection().normalize();
 
         RayTraceResult result = player.getWorld().rayTrace(
-            eye, 
-            direction, 
-            range, 
-            FluidCollisionMode.NEVER, 
-            false, 
-            0.4, 
-            entity -> !entity.equals(player)
+            eye,
+            direction,
+            range,
+            FluidCollisionMode.NEVER,
+            false,
+            0.4,
+            // Only things the laser can actually hit end the beam. (It used to stop at ANY entity, which
+            // included the beam's own block display, so the beam was cut off right at the muzzle.)
+            entity -> Targets.isTargetable(owner, entity)
         );
 
-        
+        Vector hitPosition = result != null ? result.getHitPosition() : null;
+        beamEnd = hitPosition != null
+            ? hitPosition.toLocation(player.getWorld())
+            : eye.clone().add(direction.multiply(range));
 
-        if (result == null) {
-            effect.length = range;
-            effect.maxLength = range;
-        } else {
-            Vector hitPosition = result.getHitPosition();
+        if (beam == null) {
+            // One beam for the whole duration. Both ends are live: the muzzle follows the player's eyes,
+            // the end follows beamEnd. (The old effect was built once at join, so its start never moved.)
+            beam = BattlePlugin.getInstance().getParticleService().beam(
+                owner,
+                AliParticles.LASER_SWIRL,
+                Anchor.of(() -> player.isValid() ? muzzle(player) : null),
+                Anchor.of(() -> beamEnd),
+                getTicksRemaining());
 
-            if (hitPosition != null) {
-                effect.setTarget(hitPosition.toLocation(player.getWorld()));
-            } 
+            // The solid beam: starts at the muzzle, points at beamEnd and is as long as the gap between them.
+            body = BattlePlugin.getInstance().getVisualService().follow(owner, AliVisuals.LASER_BODY, new VisualAnchor() {
+                @Override public Location location() { return muzzle(player); }
+                @Override public Vector direction() { return beamEnd.toVector().subtract(muzzle(player).toVector()); }
+                @Override public double length() { return beamEnd.distance(muzzle(player)); }
+                @Override public boolean isValid() { return beamEnd != null && player.isValid() && isActive(); }
+            });
         }
+    }
 
-        
+    /** How far in front of the player the beam starts, and how far below the eyes (0.45 is about chest height). */
+    private static final double MUZZLE_FORWARD = 0.5;
+    private static final double MUZZLE_BELOW_EYES = 0.45;
 
-        effect.setLocation(player.getEyeLocation());
-
-        effect.particle = Particle.DUST;
-        effect.color = Color.AQUA;
-        effect.particleCount = 20;
-        effect.particleSize = 0.25f;
-
-        effect.period = 1;
-        effect.iterations = 1;
-        effect.start();
+    private static Location muzzle(Player player) {
+        Location eye = player.getEyeLocation();
+        return eye.add(eye.getDirection().multiply(MUZZLE_FORWARD)).subtract(0, MUZZLE_BELOW_EYES, 0);
     }
 
     @Override
-    public void run() {
-        
+    protected void onFinish() {
+        stopBeam();
+    }
+
+    @Override
+    protected void onCancel() {
+        stopBeam();
+    }
+
+    private void stopBeam() {
+        if (beam != null) {
+            beam.cancel();
+        }
+        if (body != null) {
+            body.cancel();
+        }
     }
 }

@@ -5,13 +5,13 @@ import org.bukkit.util.Vector;
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 import com.hfturay.battleplugin.stunservice.Stun;
-import com.hfturay.battleplugin.stunservice.StunLogger;
+import com.hfturay.battleplugin.stunservice.StunService;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.ability.Activation;
 
 public class DummyStunFloat extends Ability {
 
@@ -21,23 +21,11 @@ public class DummyStunFloat extends Ability {
         this.setDisplayName("Stun Float");
         this.setCoolDown(1);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
-        StunLogger stunLogger = BattlePlugin.getInstance().getStunLogger();
+    protected Activation onActivate() {
+        StunService stunLogger = BattlePlugin.getInstance().getStunService();
         Stun floatLock = new Stun(owner.getPlayer(), 100);
         floatLock.lockX = true;
         floatLock.lockZ = true;
@@ -45,13 +33,8 @@ public class DummyStunFloat extends Ability {
 
         stunLogger.add(owner, floatLock);
 
-        return true;
+        return Activation.USED;
     }
 
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
-    }
     
 }

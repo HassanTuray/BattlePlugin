@@ -2,10 +2,10 @@ package com.hfturay.battleplugin.ability;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.particleservice.ParticleSpec;
 import com.hfturay.battleplugin.projectileservice.MotionFunction;
-import com.hfturay.battleplugin.projectileservice.ParticleEffectCallback;
 import com.hfturay.battleplugin.projectileservice.ProjectileHitCallback;
-import com.hfturay.battleplugin.projectileservice.ProjectileLogger;
+import com.hfturay.battleplugin.projectileservice.ProjectileService;
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 
 public abstract class ProjectileAbility extends Ability {
@@ -15,15 +15,15 @@ public abstract class ProjectileAbility extends Ability {
     protected VirtualProjectile virtualProjectile;
     protected ProjectileHitCallback callback;
     protected MotionFunction motionFunction;
-    protected ParticleEffectCallback effect;
+
+    /** What the projectile looks like in flight. Plain data, safe to share; null means no visuals. */
+    protected ParticleSpec particles;
 
     public ProjectileAbility(BattlePlayer owner) {
         super(owner);
     }
 
     protected void launch() {
-        ProjectileLogger projectileLogger = BattlePlugin.getInstance().getProjectileLogger();
-        projectileLogger.add(virtualProjectile);
+        BattlePlugin.getInstance().getProjectileService().add(virtualProjectile);
     }
-    
 }

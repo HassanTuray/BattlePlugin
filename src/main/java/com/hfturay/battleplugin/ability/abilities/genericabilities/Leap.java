@@ -1,85 +1,51 @@
 package com.hfturay.battleplugin.ability.abilities.genericabilities;
 
-import org.bukkit.Particle;
 import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.Activation;
+import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
-import com.hfturay.battleplugin.falldamageservice.FallDamageLogger;
+import com.hfturay.battleplugin.combatservice.FallImmunityService;
+import com.hfturay.battleplugin.combatservice.Knockback;
 
-import de.slikey.effectlib.EffectManager;
-import de.slikey.effectlib.effect.CloudEffect;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-
-public class Leap extends Ability{
-    private double horizontalForce = 3;
-    private double verticalBoost = 0.5;
-    private double upwardCurveScaling = 0.6;
+/**
+ * Launches the caster the way they are looking. Every number comes from abilities.yml (Leap section).
+ * `lift` is the flat upward speed; `pitch-lift` adds more the more level the caster looks (none when looking straight up or down).
+ */
+@RequiresSettings({ "cooldown", "horizontal-force", "lift", "pitch-lift" })
+public class Leap extends Ability {
 
     public Leap(BattlePlayer owner) {
         super(owner);
-        
-        this.setDisplayName("Leap");
-        this.setCoolDown(10);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
-        
+        this.setDisplayName("Leap");
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-        
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-        
+    protected Activation onActivate() {
         playParticleEffect();
 
         Vector direction = owner.getPlayer().getEyeLocation().getDirection().normalize();
-        Vector launch = direction.multiply(horizontalForce);
+        Vector launch = direction.multiply(setting("horizontal-force"));
 
         double pitch = owner.getPlayer().getEyeLocation().getPitch();
         double pitchFactor = (90 - Math.abs(pitch)) / 90.0;
 
-        double additionalLift = verticalBoost + (pitchFactor * upwardCurveScaling);
-        launch.setY(additionalLift);
+        launch.setY(setting("lift") + (pitchFactor * setting("pitch-lift")));
 
-        owner.getPlayer().setVelocity(launch);
+        Knockback.set(owner.getPlayer(), launch);
         owner.getPlayer().setFallDistance(0);
 
-        FallDamageLogger fallDamageLogger = BattlePlugin.getInstance().getFallDamageLogger();
-        fallDamageLogger.grantFallImmunity(owner.getPlayer());
+        FallImmunityService fallImmunity = BattlePlugin.getInstance().getFallImmunityService();
+        fallImmunity.grantFallImmunity(owner.getPlayer());
 
-        cooldownLogger.startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
 
     @Override
     public void playParticleEffect() {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        CloudEffect effect = new CloudEffect(effectManager);
-
-        effect.setLocation(owner.getPlayer().getLocation().clone());
-        effect.yOffset = -0.25;
-        effect.particleCount = 20;  
-        effect.cloudParticle = Particle.SMOKE;
-        effect.mainParticle = Particle.CLOUD;
-        effect.cloudSize = 0.75f;
-        effect.particleRadius = 0.3f;
-        effect.speed = 0.1f; 
-        effect.iterations = 1; 
-
-        effect.start();
+        BattlePlugin.getInstance().getParticleService().burst(owner, LeapParticles.SPEC, owner.getPlayer().getLocation());
     }
 }
-    

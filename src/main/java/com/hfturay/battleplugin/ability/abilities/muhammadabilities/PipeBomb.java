@@ -1,66 +1,40 @@
 package com.hfturay.battleplugin.ability.abilities.muhammadabilities;
 
-import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.ProjectileAbility;
+import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.ability.Activation;
 
+/** Every number comes from abilities.yml (PipeBomb section), read each time a bomb is thrown. */
+@RequiresSettings({ "cooldown", "speed", "hitbox", "max-ticks", "gravity", "radius", "damage", "knockback" })
 public class PipeBomb extends ProjectileAbility {
     public PipeBomb(BattlePlayer owner) {
         super(owner);
-        
+
         this.setDisplayName("Pipebomb");
-        this.setCoolDown(7);
-
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
-
-        this.speed = 1.2;
-        this.maxTicks = 200;
-        this.hitbox = 0.7;
-        this.motionFunction = (v, t) -> v.setY(v.getY() - 0.03);;
-        this.callback = new PipeBombCallBack();
-        this.effect = new PipeBombParticleEffect();
+        this.particles = MuhammadParticles.PIPE_BOMB;
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
+    protected Activation onActivate() {
+        double gravity = setting("gravity");
 
         VirtualProjectile virtualProjectile = new VirtualProjectile (
-            speed, 
-            maxTicks, 
-            owner, 
-            hitbox, 
-            callback,
-            effect
+            setting("speed"),
+            settingInt("max-ticks"),
+            owner,
+            setting("hitbox"),
+            new PipeBombCallBack(setting("radius"), setting("damage"), setting("knockback")),
+            particles
         );
 
         this.virtualProjectile = virtualProjectile;
-        virtualProjectile.setMotionFunction(motionFunction);
+        virtualProjectile.setMotionFunction((v, t) -> v.setY(v.getY() - gravity));
         launch();
-        cooldownLogger.startCooldown(owner, this);
-
-        return true;
+        return Activation.USED;
     }
 
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
-    }
 }

@@ -1,176 +1,121 @@
 package com.hfturay.battleplugin.ability.abilities.nathanabilities;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
-import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 
 import com.hfturay.battleplugin.BattlePlugin;
-import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.MeleeAbility;
-import com.hfturay.battleplugin.abilityschedulerservice.AbilityLogger;
-import com.hfturay.battleplugin.abilityschedulerservice.ScheduledAbilityTask;
+import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.abilityschedulerservice.AbilityScheduler;
+import com.hfturay.battleplugin.abilityschedulerservice.ComboWindow;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 import com.hfturay.battleplugin.stunservice.Stun;
-import com.hfturay.battleplugin.stunservice.StunLogger;
+import com.hfturay.battleplugin.stunservice.StunService;
 import com.hfturay.battleplugin.targetingservice.HitScan;
 
-import de.slikey.effectlib.EffectManager;
-import de.slikey.effectlib.effect.EquationEffect;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-
+/**
+ * Two moves: an upward slash that launches both players (`lift`), then, within `combo-ticks`, a slam that pins the
+ * target in place for `stun-ticks` and drives both down (`slam-force`, a downward speed) until they land.
+ * Every number comes from abilities.yml (GrandSlam section). The damage includes any buff from The Ascended.
+ */
+@RequiresSettings({ "cooldown", "range", "damage", "lift", "slam-force", "combo-ticks", "stun-ticks" })
 public class GrandSlam extends MeleeAbility {
-    private ScheduledAbilityTask cooldownRepeater = null;
-    public boolean slamDown = false;
-    private int deactivationTicks = 40;
-    public double damage = 4;
-    private double slam = -1.5;
+    private final ComboWindow combo;
 
     public GrandSlam(BattlePlayer owner) {
         super(owner);
-        
+
         this.setDisplayName("Grand Slam");
-        this.setCoolDown(7);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
+        // If the player does not follow up with the slam in time, the combo ends and the cooldown starts.
+        this.combo = new ComboWindow(this, () -> settingInt("combo-ticks"), this::startCooldown,
+            () -> BattlePlugin.getInstance().getAbilityScheduler());
+    }
 
-        this.reach = 5;
-        this.vertForce = 0.75;
+    private double hitDamage() {
+        return setting("damage") + getDamageBonus();
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
-        if (cooldownRepeater == null) {
-            this.cooldownRepeater = new GrandSlamRepeater(deactivationTicks, this);
-        }
-
-        if (slamDown) {
+    protected Activation onActivate() {
+        if (combo.stage() == 1) {
             slam();
         } else {
             upwardSlash();
         }
 
-        return true;
+        return Activation.USED_NO_COOLDOWN;
     }
 
     private void upwardSlash() {
         FluidCollisionMode collisionMode = FluidCollisionMode.NEVER;
-        Entity entity = HitScan.HitScanEntities(owner, reach, collisionMode);
+        Entity entity = HitScan.HitScanEntities(owner, setting("range"), collisionMode);
 
         if (entity == null) {
             return;
         }
 
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        abilityLogger.schedule(cooldownRepeater);
-        
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
+
         if (entity instanceof Damageable) {
-            ((Damageable) entity).damage(damage);
+            BattlePlugin.getInstance().getDamageService().damage(owner, entity, hitDamage());
         }
-        
+
         upwardSlashEffect(entity);
 
-        GrandSlamKnockbackRepeater targetLift = new GrandSlamKnockbackRepeater(1, entity, vertForce);
-        GrandSlamKnockbackRepeater castorLift = new GrandSlamKnockbackRepeater(1, owner.getPlayer(), vertForce);
+        double lift = setting("lift");
+        GrandSlamKnockbackRepeater targetLift = new GrandSlamKnockbackRepeater(1, entity, lift, this);
+        GrandSlamKnockbackRepeater castorLift = new GrandSlamKnockbackRepeater(1, owner.getPlayer(), lift, this);
 
-        abilityLogger.schedule(targetLift);
-        abilityLogger.schedule(castorLift);
+        abilityScheduler.schedule(targetLift);
+        abilityScheduler.schedule(castorLift);
 
-        slamDown = true;
+        combo.hit(1);
     }
 
     private void slam() {
         FluidCollisionMode collisionMode = FluidCollisionMode.NEVER;
-        Entity entity = HitScan.HitScanEntities(owner, reach, collisionMode);
+        Entity entity = HitScan.HitScanEntities(owner, setting("range"), collisionMode);
 
         if (entity == null) {
-            slamDown = false;
+            // Missed the slam: back to the first swing. The window keeps running and starts the cooldown when it ends.
+            combo.setStage(0);
             return;
         }
 
+        double damage = hitDamage();
         if (entity instanceof Damageable) {
-            ((Damageable) entity).damage(damage);
+            BattlePlugin.getInstance().getDamageService().damage(owner, entity, damage);
         }
 
-        StunLogger stunLogger = BattlePlugin.getInstance().getStunLogger();
-        Stun lockHoriz = new Stun(entity, 100);
+        int stunTicks = settingInt("stun-ticks");
+        StunService stunLogger = BattlePlugin.getInstance().getStunService();
+        Stun lockHoriz = new Stun(entity, stunTicks);
         lockHoriz.lockX = true;
         lockHoriz.lockZ = true;
 
         stunLogger.add(entity, lockHoriz);
 
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        abilityLogger.schedule(cooldownRepeater);
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
 
-        GrandSlamKnockbackRepeater targetSlamDown = new GrandSlamKnockbackRepeater(1, entity, slam);
-        GrandSlamKnockbackRepeater castorSlamDown = new GrandSlamKnockbackRepeater(1, owner.getPlayer(), slam);
-        GrandSlamDownRepeater targetFallTracker = new GrandSlamDownRepeater(100, entity, damage);
+        double slam = -setting("slam-force");   // stored as a positive downward speed; the push is negative
+        GrandSlamKnockbackRepeater targetSlamDown = new GrandSlamKnockbackRepeater(1, entity, slam, this);
+        GrandSlamKnockbackRepeater castorSlamDown = new GrandSlamKnockbackRepeater(1, owner.getPlayer(), slam, this);
+        GrandSlamDownRepeater targetFallTracker = new GrandSlamDownRepeater(stunTicks, entity, damage, this);
 
-        abilityLogger.schedule(targetSlamDown);
-        abilityLogger.schedule(castorSlamDown);
-        abilityLogger.schedule(targetFallTracker);
+        abilityScheduler.schedule(targetSlamDown);
+        abilityScheduler.schedule(castorSlamDown);
+        abilityScheduler.schedule(targetFallTracker);
 
-        this.cooldownRepeater.cancel();
-
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-        cooldownLogger.startCooldown(owner, this);
-
-        slamDown = false;
+        combo.reset();
+        startCooldown();
     }
 
     private void upwardSlashEffect(Entity target) {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        EquationEffect effect = new EquationEffect(effectManager);
-
-        effect.particle = Particle.DUST;
-        effect.colorList = new ArrayList<Color>(Arrays.asList(Color.BLACK, Color.RED, Color.PURPLE));
-        effect.particleSize = 1f;
-
-        effect.xEquation = "2 * sin(t * 3.14 / 180)";
-        effect.yEquation = "-2 * cos(t * 3.14 / 180)";
-        effect.zEquation = "0";
-
-        effect.particles = 36;
-        effect.iterations = 5;
-        effect.period = 1;
-
-        effect.orient = true;
-        effect.orientPitch = true; 
-
-        Location ownerLocation = owner.getPlayer().getLocation();
-        Location targetLocation = target.getLocation();
-
-        Location midpoint = ownerLocation.clone().add(targetLocation).multiply(0.5).add(0, 1.0, 0); 
-
-        effect.setLocation(midpoint);
-        effect.maxSteps = 360;
-
-        effect.start();
-    }
-
-    public void reset() {
-        this.cooldownRepeater = null;
-        this.slamDown = false;
+        BattlePlugin.getInstance().getParticleService()
+            .burst(owner, NathanParticles.UPWARD_SLASH, NathanParticles.midpoint(owner, target));
     }
 
     @Override

@@ -19,17 +19,23 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
 public class AnthraxZombie extends Shikigami {
-    private double maxHealth = 6;
-    private int ticksRemaining = 400;
+    // No numbers here: they come from abilities.yml through the AnthraxPackage that spawned it.
+    private final double maxHealth;
+    private final int resistanceAmplifier;
+    private int ticksRemaining;
 
-    public AnthraxZombie(Mob shikigami, BattlePlayer owner) {
+    public AnthraxZombie(Mob shikigami, BattlePlayer owner, double maxHealth, int lifetimeTicks, int resistanceAmplifier) {
         super(shikigami, owner);
-    
+
+        this.maxHealth = maxHealth;
+        this.ticksRemaining = lifetimeTicks;
+        this.resistanceAmplifier = resistanceAmplifier;
+
         this.setDisplayName("Anthrax Zombie");
 
         configureShikigami(shikigami, owner);
     }
-    
+
     @Override
     public boolean tick() {
         ticksRemaining--;
@@ -40,7 +46,7 @@ public class AnthraxZombie extends Shikigami {
 	public void configureShikigami(Mob shikigami, BattlePlayer owner) {
         shikigami.customName(Component.text(this.getDisplayName(), NamedTextColor.BLACK).decorate(TextDecoration.BOLD));
         shikigami.setCustomNameVisible(true);
-        
+
         AttributeInstance maxHealthAttr = shikigami.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         maxHealthAttr.setBaseValue(maxHealth);
         shikigami.setHealth(maxHealth);
@@ -48,11 +54,10 @@ public class AnthraxZombie extends Shikigami {
         AttributeInstance burnTime = shikigami.getAttribute(Attribute.GENERIC_BURNING_TIME);
         burnTime.setBaseValue(0);
 
-        shikigami.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, Integer.MAX_VALUE, 3));
-        // shikigami.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, Integer.MAX_VALUE, 3));
+        shikigami.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, Integer.MAX_VALUE, resistanceAmplifier));
 
         UUID uuid = owner.getPlayer().getUniqueId();
         PersistentDataContainer shikigamiPDC = shikigami.getPersistentDataContainer();
-        shikigamiPDC.set(Keys.shikigamiOwner, PersistentDataType.STRING, uuid.toString()); 
+        shikigamiPDC.set(Keys.shikigamiOwner, PersistentDataType.STRING, uuid.toString());
 	}
 }

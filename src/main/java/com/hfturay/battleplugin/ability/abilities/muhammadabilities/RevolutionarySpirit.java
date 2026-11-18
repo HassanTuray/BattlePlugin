@@ -8,47 +8,38 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
 import de.slikey.effectlib.EffectManager;
 import de.slikey.effectlib.effect.SphereEffect;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.particleservice.ParticleService;
+import com.hfturay.battleplugin.ability.Activation;
 
+/** Every number comes from abilities.yml (RevolutionarySpirit section). Usable only at or below health-threshold. */
+@RequiresSettings({ "cooldown", "health-threshold", "duration-ticks", "strength-amplifier", "resistance-amplifier", "regeneration-amplifier" })
 public class RevolutionarySpirit extends Ability {
 
     public RevolutionarySpirit(BattlePlayer owner) {
         super(owner);
-    
-        this.setDisplayName("Revolutionary Spirit");
-        this.setCoolDown(60);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
+        this.setDisplayName("Revolutionary Spirit");
     }
 
     @Override
-    public boolean activate() {
-        if (owner.getPlayer().getHealth() > 16) {
-            this.owner.getPlayer().sendActionBar(Component.text("Your resolve is not great enough", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-            return false;
-        }
+    protected String blockedReason() {
+        return owner.getPlayer().getHealth() > setting("health-threshold") ? "Your resolve is not great enough" : null;
+    }
 
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
-        PotionEffect revStrength = new PotionEffect(PotionEffectType.STRENGTH, 300, 2);
-        PotionEffect revRes = new PotionEffect(PotionEffectType.RESISTANCE, 300, 2);
-        PotionEffect revRegen = new PotionEffect(PotionEffectType.REGENERATION, 300, 1);    
+    @Override
+    protected Activation onActivate() {
+        int duration = settingInt("duration-ticks");
+        PotionEffect revStrength = new PotionEffect(PotionEffectType.STRENGTH, duration, settingInt("strength-amplifier"));
+        PotionEffect revRes = new PotionEffect(PotionEffectType.RESISTANCE, duration, settingInt("resistance-amplifier"));
+        PotionEffect revRegen = new PotionEffect(PotionEffectType.REGENERATION, duration, settingInt("regeneration-amplifier"));
 
         Player player = owner.getPlayer();
         player.addPotionEffect(revStrength);
@@ -57,43 +48,16 @@ public class RevolutionarySpirit extends Ability {
 
         playParticleEffect();
 
-        cooldownLogger.startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
 
     @Override
     public void playParticleEffect() {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        SphereEffect revBurst = new SphereEffect(effectManager);
-        
-        revBurst.setEntity(owner.getPlayer());
-        
-        revBurst.particle = Particle.DUST;
-        revBurst.color = Color.RED;
-        revBurst.particles = 50;
-        revBurst.particleIncrease = 20;
+        ParticleService particles = BattlePlugin.getInstance().getParticleService();
+        Player player = owner.getPlayer();
 
-        revBurst.period = 1;
-        revBurst.iterations = 16;
-        
-        revBurst.radius = 1;
-        revBurst.radiusIncrease = 0.2;
-        revBurst.start();
-
-        revBurst.callback = () -> {
-            SphereEffect revAura = new SphereEffect(effectManager);
-            revAura.setEntity(owner.getPlayer());
-
-            revAura.particle = Particle.DUST;
-            revAura.color = Color.RED;
-            revAura.particles = 50;
-            
-            revAura.period = 1;
-            revAura.iterations = 300;
-            
-            revAura.radius = 4;
-            revAura.start();
-
-        };
+        // burst first; when it finishes by itself, settle into the aura for the length of the buff
+        particles.follow(owner, MuhammadParticles.REVOLUTIONARY_BURST, player, ParticleService.UNTIL_DONE)
+            .whenDone(() -> particles.follow(owner, MuhammadParticles.REVOLUTIONARY_AURA, player, settingInt("duration-ticks")));
     }
 }

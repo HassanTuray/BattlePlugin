@@ -10,49 +10,37 @@ import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.ability.Activation;
 
+/** Every number comes from abilities.yml (Teleport section). */
+@RequiresSettings({ "cooldown", "range" })
 public class Teleport extends Ability {
-    private double range = 30;
 
     public Teleport(BattlePlayer owner) {
         super(owner);
 
         this.setDisplayName("Teleport");
-        this.setCoolDown(12);
-
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
+    protected Activation onActivate() {
         Player player = owner.getPlayer();
 
         RayTraceResult result = player.getWorld().rayTraceBlocks(
             player.getEyeLocation(),
             player.getEyeLocation().getDirection(),
-            range,
+            setting("range"),
             FluidCollisionMode.NEVER
         );
 
         if (result == null) {
-            return false;
+            return Activation.FAILED;
         }
 
         Block block = result.getHitBlock();
@@ -60,7 +48,7 @@ public class Teleport extends Ability {
         Location dest;
 
         if (block == null || face == null) {
-            return false;
+            return Activation.FAILED;
         }
 
         if (block.getRelative(BlockFace.UP).isEmpty()) {
@@ -80,14 +68,8 @@ public class Teleport extends Ability {
         }
         
 
-        cooldownLogger.startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
 
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
-    }
     
 }

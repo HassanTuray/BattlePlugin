@@ -43,5 +43,30 @@ public class AbilityItemFactory {
 
         return meta.getPersistentDataContainer().has(buffItemKey, PersistentDataType.STRING);
     }
-}
 
+    public static boolean isElementalItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey elementalItemKey = new NamespacedKey(BattlePlugin.getInstance(), "elemental-item");
+
+        return meta.getPersistentDataContainer().has(elementalItemKey, PersistentDataType.STRING);
+    }
+
+    public static boolean isShikigamiItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey shikigamiItemKey = new NamespacedKey(BattlePlugin.getInstance(), "shikigami-item");
+
+        return meta.getPersistentDataContainer().has(shikigamiItemKey, PersistentDataType.STRING);
+    }
+
+    /** True for any of the five ability items. */
+    public static boolean isAbilityItem(ItemStack item) {
+        return isAttackItem(item) || isMobilityItem(item) || isBuffItem(item) || isElementalItem(item)
+            || isShikigamiItem(item);
+    }
+}

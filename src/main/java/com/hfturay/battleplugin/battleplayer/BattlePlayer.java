@@ -6,10 +6,12 @@ import java.util.ArrayList;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
-import com.hfturay.battleplugin.ability.AbilityFactory;
+import com.hfturay.battleplugin.ability.AbilitySlot;
 import com.hfturay.battleplugin.items.AttackItem;
 import com.hfturay.battleplugin.items.BuffItem;
+import com.hfturay.battleplugin.items.ElementalItem;
 import com.hfturay.battleplugin.items.MobilityItem;
+import com.hfturay.battleplugin.items.ShikigamiItem;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -22,34 +24,23 @@ public class BattlePlayer {
     private AttackItem attackItem;
     private MobilityItem mobilityItem;
     private BuffItem buffItem;
+    private ElementalItem elementalItem;
+    private ShikigamiItem shikigamiItem;
 
-    private ArrayList<Ability> attackAbilities;
-    private ArrayList<Ability> mobilityAbilities;
-    private ArrayList<Ability> buffAbilities;
-
-    private int numAttacks = 4;
-    private int numMobility = 2;
-    private int numBuff = 2;
-
-    private int currAttackIndex = 0;
-    private int currMobilityIndex = 0;
-    private int currBuffIndex = 0;
-    
+    // What this player has on each item, and which one each item has selected.
+    // Any number of abilities per item (including none) is fine.
+    private final AbilityLoadout loadout = new AbilityLoadout();
 
     public BattlePlayer(Player player) {
         this.bukkitPlayer = player;
 
-        this.attackAbilities = new ArrayList<>();
-        this.mobilityAbilities = new ArrayList<>();
-        this.buffAbilities = new ArrayList<>();
-
         this.attackItem = new AttackItem(this);
         this.mobilityItem = new MobilityItem(this);
         this.buffItem = new BuffItem(this);
+        this.elementalItem = new ElementalItem(this);
+        this.shikigamiItem = new ShikigamiItem(this);
 
-        BattlePlugin.getInstance().getAbilityFactory().assignAbilities(this);
-
-        BattlePlugin.getInstance().getLogger().info("Size: " + attackAbilities.size());
+        // The loadout starts empty. PlayerLogger.register fills it from the saved file or kits.yml.
     }
 
     // Can just return the player whenever we want members from this
@@ -57,79 +48,86 @@ public class BattlePlayer {
         return this.bukkitPlayer;
     }
 
+    public AbilityLoadout getLoadout() {
+        return this.loadout;
+    }
+
     public ArrayList<Ability> getAttackAbilities() {
-        return this.attackAbilities;
+        return loadout.list(AbilitySlot.ATTACK);
     }
 
     public ArrayList<Ability> getMobilityAbilities() {
-        return this.mobilityAbilities;
+        return loadout.list(AbilitySlot.MOBILITY);
     }
 
     public ArrayList<Ability> getBuffAbilities() {
-        return this.buffAbilities;
+        return loadout.list(AbilitySlot.BUFF);
     }
 
+    public ArrayList<Ability> getElementalAbilities() {
+        return loadout.list(AbilitySlot.ELEMENTAL);
+    }
+
+    /** The first ability of this class the player has on any item, or null if they do not have it. */
     public <T extends Ability> T getAbility(Class<T> abilityClass) {
-
-    for (Ability ability : attackAbilities) {
-        if (abilityClass.isInstance(ability)) {
-            return abilityClass.cast(ability);
-        }
+        return loadout.find(abilityClass);
     }
 
-    for (Ability ability : mobilityAbilities) {
-        if (abilityClass.isInstance(ability)) {
-            return abilityClass.cast(ability);
+    // ---- selecting and using the current ability on an item ----
+
+    /** Right-click: move to the next ability on this item and show its name. */
+    public void nextAbility(AbilitySlot slot) {
+        Ability ability = loadout.next(slot);
+
+        if (ability == null) {
+            sendNoAbilities(slot);
+            return;
         }
+
+        this.bukkitPlayer.sendActionBar(Component.text(ability.getDisplayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
     }
 
-    for (Ability ability : buffAbilities) {
-        if (abilityClass.isInstance(ability)) {
-            return abilityClass.cast(ability);
+    /** Left-click: use the ability currently selected on this item. Says so if the item has none. */
+    public boolean activateCurrent(AbilitySlot slot) {
+        Ability ability = loadout.current(slot);
+
+        if (ability == null) {
+            sendNoAbilities(slot);
+            return false;
         }
+
+        return ability.activate();
     }
 
-    return null;
-}
-
+    private void sendNoAbilities(AbilitySlot slot) {
+        this.bukkitPlayer.sendActionBar(Component.text("No " + slot.label() + " abilities loaded", NamedTextColor.GRAY).decorate(TextDecoration.BOLD));
+    }
 
     public void nextAttackAbility() {
-        currAttackIndex += 1;
-        if (currAttackIndex >= numAttacks ) {
-            currAttackIndex = 0;
-        }
-
-        this.bukkitPlayer.sendActionBar(Component.text(this.attackAbilities.get(currAttackIndex).getDisplayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-    } 
+        nextAbility(AbilitySlot.ATTACK);
+    }
 
     public void nextMobilityAbility() {
-        currMobilityIndex += 1;
-        if (currMobilityIndex >= numMobility) {
-            currMobilityIndex = 0;
-        }
-
-        this.bukkitPlayer.sendActionBar(Component.text(this.mobilityAbilities.get(currMobilityIndex).getDisplayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
+        nextAbility(AbilitySlot.MOBILITY);
     }
 
     public void nextBuffAbility() {
-        currBuffIndex += 1;
-        if (currBuffIndex >= numBuff) {
-            currBuffIndex = 0;
-        }
-
-        this.bukkitPlayer.sendActionBar(Component.text(this.buffAbilities.get(currBuffIndex).getDisplayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
+        nextAbility(AbilitySlot.BUFF);
     }
 
+    /** May be null if the item has no abilities. */
     public Ability getCurrentAttackAbility() {
-        return this.attackAbilities.get(currAttackIndex);
+        return loadout.current(AbilitySlot.ATTACK);
     }
 
+    /** May be null if the item has no abilities. */
     public Ability getCurrentMobilityAbility() {
-        return this.mobilityAbilities.get(currMobilityIndex);
+        return loadout.current(AbilitySlot.MOBILITY);
     }
 
+    /** May be null if the item has no abilities. */
     public Ability getCurrentBuffAbility() {
-        return this.buffAbilities.get(currBuffIndex);
+        return loadout.current(AbilitySlot.BUFF);
     }
 
 
@@ -141,8 +139,19 @@ public class BattlePlayer {
         return this.buffItem;
     }
 
+    public ElementalItem getElementalItem() {
+        return this.elementalItem;
+    }
+
+    public ShikigamiItem getShikigamiItem() {
+        return this.shikigamiItem;
+    }
+
+    public ArrayList<Ability> getShikigamiAbilities() {
+        return loadout.list(AbilitySlot.SHIKIGAMI);
+    }
+
     public MobilityItem getMobilityItem() {
         return this.mobilityItem;
     }
 }
-

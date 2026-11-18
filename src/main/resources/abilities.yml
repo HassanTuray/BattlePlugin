@@ -1,0 +1,334 @@
+# Ability numbers. This is the ONLY place they live: the plugin code has no numbers of its own.
+#
+# NOTE: this copy is only a template for brand-new servers. The live file the server reads is
+#       plugins/BattlePlugin/abilities.yml. Edit that one, save, then run /kits reload in game.
+#       It applies the next time that ability is used. No recompile needed.
+#
+# Every setting an ability lists below is required. If one is missing, the ability will not run
+# (it says which setting in the action bar) and /kits reload warns about it.
+#
+# Settings:
+#   cooldown        seconds
+#   speed           blocks per tick (20 ticks per second)
+#   max-ticks       how many ticks a projectile flies before it fizzles
+#   duration-ticks  how many ticks an effect lasts
+#   hitbox, radius, range   blocks
+#   damage          health points (2 = one heart)
+#   horizontal-force, lift  knockback away from the centre, and upwards
+#   amplifier       potion level minus one (2 = level III); the other "-amplifier" settings work the same way
+#   gravity         blocks a thrown projectile drops every tick
+#   *-ticks         ticks (20 per second); cooldown is the only one in seconds
+#
+# Every ability is configured here.
+
+# ---- Ali ----
+
+PharahRocket:
+  cooldown: 9
+  speed: 1.4
+  max-ticks: 100         # 100 ticks = 5 seconds of flight
+  hitbox: 1.2            # how close it must pass to a player to hit them
+  radius: 5              # explosion size
+  damage: 4
+  horizontal-force: 1.2
+  lift: 0.6
+
+Laser:
+  cooldown: 15
+  duration-ticks: 140    # how long the beam stays on
+  range: 9
+  damage: 1              # dealt EVERY tick the beam is on someone
+
+BigBang:                 # shown in game as "Personal Space"
+  cooldown: 7
+  radius: 5
+  damage: 5
+  horizontal-force: 1.2
+  lift: 0.6
+
+Teleport:
+  cooldown: 12
+  range: 30
+
+CheeseSandwichAndTangerines:
+  cooldown: 25
+  duration-ticks: 80
+  amplifier: 2           # invisibility, regeneration, absorption and speed all use this level
+
+# ---- Muhammad ----
+
+PipeBomb:
+  cooldown: 7
+  speed: 1.2
+  max-ticks: 200         # 200 ticks = 10 seconds of flight
+  hitbox: 0.7
+  gravity: 0.03          # how much the bomb drops every tick (0 = flies straight)
+  radius: 6              # blast size
+  damage: 4
+  knockback: 1.2         # push away from the blast, in all directions
+
+AnthraxPackage:
+  cooldown: 20
+  speed: 1.2
+  max-ticks: 200
+  hitbox: 0.4
+  gravity: 0.03
+  duration-ticks: 200    # how long the cloud stays after landing
+  interval-ticks: 10     # the cloud hurts everyone in it once every this many ticks
+  radius: 4
+  x-bound: 4             # the cloud's size east-west, up-down and north-south
+  y-bound: 1
+  z-bound: 4
+  damage: 2              # dealt each time the cloud pulses
+  effect-ticks: 100      # how long slowness, poison and wither last after each pulse
+  slow-amplifier: 2
+  poison-amplifier: 1
+  wither-amplifier: 1
+  zombie-count: 2        # zombies that spawn where it lands
+  zombie-health: 6
+  zombie-lifetime-ticks: 400
+  zombie-resistance: 3   # their damage resistance level
+
+MeltdownOfWaves:
+  cooldown: 8
+  speed: 0.6             # how fast the wave travels
+  max-ticks: 100
+  hitbox: 3              # how far from the wave's path a target is still caught
+  damage: 1              # dealt EVERY tick a target is in the wave
+  lift: 0.05             # small upward push so targets slide instead of dragging
+  silence-ticks: 30      # a player in the wave cannot use abilities for 1.5s after the last contact
+  # The push follows the wave: it tries to keep every target this far ahead of the wave's middle.
+  front-offset: 1.0      # where targets are held, in blocks ahead of the wave's middle
+  back-reach: 1.5        # a target further behind the middle than this has been passed and is let go
+  pull-gain: 0.5         # how hard it corrects a target's position (higher = tighter, 0 = fixed speed)
+  max-push-speed: 1.2    # the fastest it will ever push a target (blocks per tick)
+
+Shortcut:
+  cooldown: 10           # starts when you use the shortcut, not when you place it
+  duration-ticks: 200    # how long the placed marker lasts
+  radius: 3              # who is blinded where you arrive
+  effect-ticks: 40
+  blindness-amplifier: 2
+  night-vision-amplifier: 2
+
+RevolutionarySpirit:
+  cooldown: 60
+  health-threshold: 16   # can only be used at or below this health (2 = one heart)
+  duration-ticks: 300
+  strength-amplifier: 2
+  resistance-amplifier: 2
+  regeneration-amplifier: 1
+
+# ---- Elemental item (blaze rod) ----
+
+WaterPrison:
+  cooldown: 10
+  range: 10              # entities within this many blocks of you each get a water block sent after them
+  speed: 2.0             # blocks per tick the water block homes in at
+  hitbox: 1.0            # how close counts as a hit
+  max-ticks: 30          # a water block that has not connected by now gives up
+  pop-ticks: 8           # ticks the target is in the air after being hit, before the cube forms
+  pop-lift: 0.9          # upward speed of the pop
+  cube-size: 5           # edge length of the solid water cube, in blocks
+  duration-ticks: 60     # how long the target is held in the cube (60 = 3 seconds)
+  trail-ticks: 3         # how long the water the block leaves behind it stays before it is removed
+
+WaterBarrage:
+  cooldown: 10
+  damage: 2              # health points per hit (2 = one heart)
+  count: 3               # how many blasts are fired
+  interval-ticks: 10     # ticks between launches (10 = half a second)
+  speed: 1.5             # blocks per tick each blast travels
+  hitbox: 0.8            # how close to a player counts as a hit
+  max-ticks: 40          # a blast that has not hit anything by now disappears
+  trail-ticks: 3         # how long the water a blast leaves behind it stays before it is removed
+  turn-rate: 0.15        # how sharply a blast bends toward where you look each tick (0 = straight line, 1 = snaps to your aim)
+
+# ---- Earth ----
+
+EarthDome:
+  cooldown: 10
+  radius: 10             # radius of the dome, in blocks (the top half of a sphere, centred on your feet)
+  thickness: 1.5         # how thick the wall is, in blocks (below about 1.5 can leave diagonal gaps)
+  duration-ticks: 300    # how long the dome stands (300 = 15 seconds)
+  resistance-amplifier: 0  # resistance level for the caster while inside (0 = Resistance I, 1 = Resistance II)
+
+StubbornEarth:
+  cooldown: 10
+  duration-ticks: 200    # how long the effect lasts (200 = 10 seconds)
+  resistance-amplifier: 3  # the caster's resistance level (0 = Resistance I, so 3 = Resistance IV)
+  slow-amplifier: 2      # the caster's slowness level (0 = Slowness I, so 2 = Slowness III)
+  radius: 5              # radius of the swirling sphere of crumbs, in blocks
+  count: 40              # crumbs drawn per tick (more = denser sphere, more particle load)
+
+# ---- Fire ----
+
+BlastOff:
+  cooldown: 10
+  duration-ticks: 60     # how long you fly, held in the flying pose (60 = 3 seconds)
+  speed: 1.0             # blocks per tick you are pushed along where you look (1.0 = 20 blocks a second)
+  launch-lift: 0.8       # upward speed for the first few ticks so you leave the ground
+  damage: 1              # health points to everyone close to you, each time (1 = half a heart)
+  radius: 1              # how close to your body someone must be to be burned, in blocks
+  interval-ticks: 15     # ticks between burns while someone stays close
+
+MajesticDestroyerFlame:
+  cooldown: 10
+  damage: 2              # health points of the hit itself (2 = one heart)
+  fire-ticks: 60         # how long they burn afterwards (burning does 1 health point per 20 ticks, so 60 = 1.5 hearts)
+  range: 15              # how far in front of you the blast reaches, in blocks
+  width: 7               # how far it spreads to each side of you, in blocks
+  back-reach: 5          # how far BEHIND you it still hits, in blocks
+  height: 3              # how far above or below the blast's centre line someone can be and still be hit (the flames shown stay within about a body height)
+  speed: 2.0             # blocks per tick the flames travel outward (looks only: everyone in the area is hit at once)
+  count: 150             # flames drawn per tick (more = denser fire, more particle load)
+  smoke-count: 60        # puffs of campfire smoke in the ball that bursts in front of you when you cast
+
+# ---- Air ----
+
+AirDome:
+  cooldown: 10
+  duration-ticks: 100    # how long the dome stands (100 = 5 seconds)
+  radius: 5              # radius of the dome around you, in blocks
+  damage: 1              # health points each time the dome hits someone (1 = half a heart)
+  speed-amplifier: 19    # your speed level (0 = Speed I, so 19 = Speed XX / level 20)
+  push-strength: 0.9     # how hard everyone inside is pushed away from you, in blocks per tick
+  push-lift: 0.25        # how much they are lifted off the ground while being pushed
+  damage-interval-ticks: 10   # ticks between hits on someone the dome keeps pushing (10 matches the server hit cooldown)
+  count: 60              # puffs of wind drawn per tick (more = denser dome, more particle load)
+
+SonicBoom:
+  cooldown: 10
+  damage: 6              # health points of the hit (6 = three hearts)
+  speed: 3.0             # blocks per tick the blast flies
+  hitbox: 1.0            # radius of the blast, in blocks (how close to a player counts as a hit)
+  max-ticks: 20          # a blast that has hit nothing by now disappears (20 ticks at speed 3 = 60 blocks)
+  knockback: 3.0         # how hard the victim is thrown back along the blast, in blocks per tick
+  lift: 0.4              # how far up the victim is thrown while going back
+
+# ---- Generic kit ----
+
+Brick:
+  cooldown: 1
+  speed: 2               # blocks per tick
+  hitbox: 1              # how close to a player counts as a hit
+  max-ticks: 100         # how long it flies before it disappears
+  gravity: 0.01          # blocks it drops every tick
+  damage: 3              # health points (2 = one heart)
+
+Leap:
+  cooldown: 10
+  horizontal-force: 3    # speed along where you look
+  lift: 0.5              # flat upward speed
+  pitch-lift: 0.6        # extra upward speed the more level you look (none looking straight up or down)
+
+Adrenaline:
+  cooldown: 30
+  duration-ticks: 2400   # how long the speed lasts (2400 = 2 minutes)
+  amplifier: 3           # speed level minus one (3 = Speed IV)
+  regeneration-ticks: 80 # how long the regeneration lasts
+  regeneration-amplifier: 3  # regeneration level minus one (3 = Regeneration IV)
+
+# ---- Damon ----
+
+Disengage:
+  cooldown: 7
+  horizontal-force: 3    # speed away from where you look
+  lift: 0.5              # flat upward speed
+  pitch-lift: 0.6        # extra upward speed the more level you look
+
+Homebrew:
+  cooldown: 13
+  speed: 0.7             # blocks per tick
+  max-ticks: 200         # how long it flies before it disappears
+  hitbox: 0.5            # how close to a player counts as a hit
+  gravity: 0.03          # blocks it drops every tick
+  duration-ticks: 60     # how long the effects last on everyone it splashes
+  amplifier: 2           # level minus one of every effect (2 = level III)
+  radius: 5              # splash radius where it lands, in blocks
+
+LandMine:
+  cooldown: 8
+  range: 5               # how far away you can plant it, looking at a block
+  radius: 5              # how close someone must come to set it off, and how far the blast reaches
+  duration-ticks: 100    # how long it stays armed (100 = 5 seconds)
+  damage: 4              # health points to everyone in the blast
+  knockback: 1.2         # how hard everyone in the blast is thrown away from it
+
+Lazer:
+  cooldown: 8
+  range: 10              # how far the beam reaches, in blocks
+  damage: 5              # health points
+
+SwitchOnALazer:
+  cooldown: 30
+  duration-ticks: 200    # how long the Lazer is boosted (200 = 10 seconds)
+  damage-multiplier: 2   # the Lazer damage is multiplied by this while it lasts
+
+# ---- Nathan ----
+
+OrbThrow:
+  cooldown: 7
+  speed: 1               # blocks per tick
+  hitbox: 0.5            # how close to a player counts as a hit
+  max-ticks: 300         # how long the orb lives
+  damage: 4              # health points per hit (the orb passes through players)
+  homing-distance: 15    # blocks it flies out before it turns around and homes in on you
+  turn-strength: 0.75    # how sharply it turns toward you each tick (0 = never, 1 = at once)
+  homing-damage-multiplier: 2  # its damage is multiplied by this once it starts coming back
+  catch-radius: 1        # how close to you it must get to end
+
+ThreeHits:
+  cooldown: 6
+  range: 5               # how far each hit reaches, in blocks
+  damage: 2.5            # health points per hit
+  lift: 0.35             # how much the second hit lifts the target
+  slam-force: 1.5        # how hard the third hit drives the target down, in blocks per tick
+  combo-ticks: 140       # ticks you have to land the next hit (140 = 7 seconds); the cooldown starts when it runs out
+
+GrandSlam:
+  cooldown: 7
+  range: 5               # how far each move reaches, in blocks
+  damage: 4              # health points per hit
+  lift: 0.75             # how hard the upward slash launches you and the target
+  slam-force: 1.5        # how hard the slam drives you and the target down, in blocks per tick
+  combo-ticks: 40        # ticks you have to follow the slash with the slam (40 = 2 seconds)
+  stun-ticks: 100        # how long the slammed target is pinned in place, and how long the landing hit is watched for
+
+StrongLeap:
+  cooldown: 7
+  horizontal-force: 5    # speed along where you look
+  lift: 0.5              # flat upward speed
+  pitch-lift: 0.6        # extra upward speed the more level you look
+  min-horizontal-multiplier: 3  # after the first use, the sideways force is multiplied by the seconds since last use, at least this
+  min-vertical-multiplier: 2    # the same for the upward speed
+
+TheAscended:
+  cooldown: 30
+  duration-ticks: 260    # how long it lasts (260 = 13 seconds)
+  damage-bonus: 3        # extra health points on your Grand Slam, Three-Hits and Orb Throw while it lasts
+  speed-amplifier: 7     # speed level minus one (7 = Speed VIII)
+  jump-amplifier: 3      # jump boost level minus one (3 = Jump Boost IV)
+  walk-speed: 0.18       # your base walking speed while it lasts (0.1 is normal)
+  health-threshold: 8    # you can only use it at or below this many health points
+  end-health: 8          # the health you are left at when it ends
+
+# ---- Shikigami item (breeze rod) ----
+# Right-click the rod to cycle shikigami, left-click to summon the selected one.
+# Numbers are read when the shikigami is summoned, so /kits reload applies to the next one.
+SummonWarrior:
+  cooldown: 10
+  health: 20                  # its health points (2 = one heart)
+  damage: 4                   # health points per hit (4 = 2 hearts)
+  attack-range: 1.5           # how close it must be to hit (blocks, edge to edge)
+  attack-interval-ticks: 20   # time between hits (20 = 1 second)
+  attack-hit-delay-ticks: 12  # the hit lands this long after its attack animation starts (matches the swing; 0 = at once)
+  target-range: 12            # how far it looks for enemies
+  follow-distance: 4          # stays within this many blocks of you when it has no target
+  leash-distance: 32          # farther than this from you and it is teleported to you
+  speed: 1.2                  # movement speed multiplier
+  lifetime-ticks: 1200        # despawns after this long (1200 = 60 seconds, 0 = never)
+  idle-ticks: 0               # despawns after this long without a target or a hit (0 = never)
+  max-active: 1               # how many of these you can have out at once
+  hit-memory-ticks: 100       # it goes after whatever you hit (any mob or player) for this long after your last hit
+  flame-interval-ticks: 200   # it casts Majestic Destroyer Flame (using that ability numbers) when its target is in range, then waits this long (200 = 10 seconds)

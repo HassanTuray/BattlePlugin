@@ -11,7 +11,9 @@ plugins {
 
 group = "com.hfturay"
 version = "1.0.0"
-val serverDir = "C:/Users/Hassa/server 2.0" 
+// The test server sits next to the project folder. Override with:  ./gradlew deploy -PserverDir="C:/path/to/server"
+val serverDir: String = (findProperty("serverDir") as String?)
+    ?: rootDir.parentFile.resolve("server 2.0").absolutePath
 
 repositories {
     mavenCentral()
@@ -23,6 +25,9 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT") // Paper API
     compileOnly("com.elmakers.mine.bukkit:EffectLib:10.10")
+    // Custom shikigami models. Version 2.2.0 is the last release built for Java 21 that supports Minecraft 1.21.8.
+    // Optional at runtime: without the BetterModel plugin, shikigami fall back to plain mobs.
+    compileOnly("io.github.toxicity188:bettermodel-bukkit-api:2.2.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -37,8 +42,18 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
+// Stops deploy before it builds or copies anything if the server folder is wrong. (A check inside deploy itself is
+// too late: Gradle creates the destination folder before the task starts, which would hide the mistake.)
+val checkServerDir = tasks.register("checkServerDir") {
+    doLast {
+        if (!file("$serverDir/plugins").isDirectory) {
+            throw GradleException("No plugins folder at $serverDir/plugins. Pass the server folder with -PserverDir=\"C:/path/to/server\".")
+        }
+    }
+}
+
 tasks.register<Copy>("deploy") {
-    dependsOn("build")
+    dependsOn(checkServerDir, "build")
     from(layout.buildDirectory.dir("libs")) {
         include("${project.name}-${project.version}.jar")
     }

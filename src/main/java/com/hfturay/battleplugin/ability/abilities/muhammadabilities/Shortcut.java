@@ -11,15 +11,21 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
-import com.hfturay.battleplugin.abilityschedulerservice.AbilityLogger;
+import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.abilityschedulerservice.AbilityScheduler;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 import com.hfturay.battleplugin.targetingservice.AOE;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.ability.Activation;
 
+/**
+ * Every number comes from abilities.yml (Shortcut section). The cooldown starts when the shortcut is used,
+ * not when the marker is placed.
+ */
+@RequiresSettings({ "cooldown", "duration-ticks", "radius", "effect-ticks", "blindness-amplifier", "night-vision-amplifier" })
 public class Shortcut extends Ability {
     private boolean locationSet = false;
     private Location shortcutLocation = null;
@@ -27,26 +33,12 @@ public class Shortcut extends Ability {
 
     public Shortcut(BattlePlayer owner) {
         super(owner);
-        
-        this.setDisplayName("Shortcut.");
-        this.setCoolDown(10);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
+        this.setDisplayName("Shortcut.");
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
+    protected Activation onActivate() {
         if (locationSet) {
             return useShortCut();
         } else {
@@ -54,19 +46,19 @@ public class Shortcut extends Ability {
         }
     }
 
-    private boolean setShortcut() {
+    private Activation setShortcut() {
         shortcutLocation = owner.getPlayer().getLocation();
         this.owner.getPlayer().sendActionBar(Component.text("Shortcut set", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
 
-        repeater = new ShortcutRepeater(200, shortcutLocation, this);
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        abilityLogger.schedule(repeater);
+        repeater = new ShortcutRepeater(settingInt("duration-ticks"), shortcutLocation, this);
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
+        abilityScheduler.schedule(repeater);
 
         locationSet = true;
-        return false;
+        return Activation.USED_NO_COOLDOWN;
     }
 
-    private boolean useShortCut() {
+    private Activation useShortCut() {
         Player player = owner.getPlayer();
         Location location = player.getLocation();
 
@@ -75,10 +67,11 @@ public class Shortcut extends Ability {
 
         player.teleport(shortcutLocation);
 
-        PotionEffect shortcutBlindess = new PotionEffect(PotionEffectType.BLINDNESS, 40, 2);
-        PotionEffect shortcutNightVision = new PotionEffect(PotionEffectType.NIGHT_VISION, 40, 2);
+        int effectTicks = settingInt("effect-ticks");
+        PotionEffect shortcutBlindess = new PotionEffect(PotionEffectType.BLINDNESS, effectTicks, settingInt("blindness-amplifier"));
+        PotionEffect shortcutNightVision = new PotionEffect(PotionEffectType.NIGHT_VISION, effectTicks, settingInt("night-vision-amplifier"));
 
-        List<Entity> targets = AOE.getTargets(owner, shortcutLocation, 3);
+        List<Entity> targets = AOE.getTargets(owner, shortcutLocation, setting("radius"));
         for (Entity entity : targets) {
             if (entity instanceof LivingEntity) {
                 ((LivingEntity) entity).addPotionEffect(shortcutBlindess);
@@ -88,15 +81,9 @@ public class Shortcut extends Ability {
 
         repeater.cancel();
         resetShortcut();
-        BattlePlugin.getInstance().getCoolDownLogger().startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
 
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
-    }
 
 
     public void resetShortcut() {

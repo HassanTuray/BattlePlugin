@@ -12,7 +12,6 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.customeffects.ExpandingCircleEffect;
 import com.hfturay.battleplugin.projectileservice.ProjectileHitCallback;
 import com.hfturay.battleplugin.projectileservice.ProjectileHitResult;
 import com.hfturay.battleplugin.targetingservice.AOE;
@@ -20,9 +19,16 @@ import com.hfturay.battleplugin.targetingservice.AOE;
 import de.slikey.effectlib.EffectManager;
 
 public class HomebrewCallback implements ProjectileHitCallback {
-    private int duration = 60;
-    private int amplifier = 2; 
-    private int homebrewRadius = 5;
+    private final int duration;
+    private final int amplifier;
+    private final double homebrewRadius;
+
+    /** All three come from abilities.yml (Homebrew section), read when the potion is thrown. */
+    public HomebrewCallback(int duration, int amplifier, double radius) {
+        this.duration = duration;
+        this.amplifier = amplifier;
+        this.homebrewRadius = radius;
+    }
 
     @Override
     public void onHit(ProjectileHitResult result, BattlePlayer owner) {
@@ -83,31 +89,10 @@ public class HomebrewCallback implements ProjectileHitCallback {
             }
         }
 
-        brewImpactEffect(location);
+        brewImpactEffect(owner, location);
     }
 
-    private void brewImpactEffect(Location location) {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        ExpandingCircleEffect brewImpact = new ExpandingCircleEffect(effectManager);
-        
-        // it is safe to do this because the location is a clone and pitch and yaw are not used in getting the targets of the ability
-        // also the effect is called after the ability is activated so nothing else in the ability is using the location
-        location.setPitch(0);
-        location.setYaw(0);
-
-        brewImpact.setLocation(location.add(0, 0.65, 0));
-        brewImpact.particle = Particle.DUST;
-        brewImpact.color = Color.GREEN;
-        brewImpact.particleCount = 10;
-        brewImpact.radius = 0.1f;
-        brewImpact.iterations = 10;
-        brewImpact.period = 1;
-        brewImpact.enableRotation = false;
-        brewImpact.growthPerTick = 0.35;
-        brewImpact.maxRadius = 5;
-        brewImpact.wholeCircle = true;
-        brewImpact.linger = false;
-
-        brewImpact.start();
+    private void brewImpactEffect(BattlePlayer owner, Location location) {
+        BattlePlugin.getInstance().getParticleService().burst(owner, HomebrewParticles.IMPACT, location);
     }
 }

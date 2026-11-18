@@ -1,10 +1,5 @@
 package com.hfturay.battleplugin.ability.abilities.nathanabilities;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import org.bukkit.Color;
-import org.bukkit.Particle;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -13,103 +8,79 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
-import com.hfturay.battleplugin.abilityschedulerservice.AbilityLogger;
+import com.hfturay.battleplugin.ability.Activation;
+import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.abilityschedulerservice.AbilityScheduler;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
-import de.slikey.effectlib.EffectManager;
-import de.slikey.effectlib.effect.AnimatedBallEffect;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-
+/**
+ * Only usable at low health. Fully heals the caster, adds `damage-bonus` to their Grand Slam, Three-Hits and Orb
+ * Throw, and makes them fast and bouncy for `duration-ticks`; when it ends they are left at `end-health`.
+ * Every number comes from abilities.yml (TheAscended section).
+ */
+@RequiresSettings({ "cooldown", "duration-ticks", "damage-bonus", "speed-amplifier", "jump-amplifier", "walk-speed",
+    "health-threshold", "end-health" })
 public class TheAscended extends Ability {
-    private int duration = 260;
-    private int buff = 3;
 
     public TheAscended(BattlePlayer owner) {
         super(owner);
-        
-        this.setDisplayName("The Ascended");
-        this.setCoolDown(30);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
+        this.setDisplayName("The Ascended");
     }
 
     @Override
-    public boolean activate() {
-       if (owner.getPlayer().getHealth() > 8) {
-            this.owner.getPlayer().sendActionBar(Component.text("You cannot ascend yet", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-            return false;
-        }
+    protected String blockedReason() {
+        return owner.getPlayer().getHealth() > setting("health-threshold") ? "You cannot ascend yet" : null;
+    }
 
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
+    @Override
+    protected Activation onActivate() {
         Player player = owner.getPlayer();
+        int duration = settingInt("duration-ticks");
+        double buff = setting("damage-bonus");
+
         player.setHealth(player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue());
 
+        // Only the abilities this player actually has get the bonus. Any of them can be missing.
         GrandSlam grandSlam = owner.getAbility(GrandSlam.class);
-        grandSlam.damage = grandSlam.damage + buff;
+        if (grandSlam != null) {
+            grandSlam.addDamageBonus(buff);
+        }
 
         ThreeHits threeHits = owner.getAbility(ThreeHits.class);
-        threeHits.setDamage(threeHits.getDamage() + buff); 
+        if (threeHits != null) {
+            threeHits.addDamageBonus(buff);
+        }
 
         OrbThrow orbThrow = owner.getAbility(OrbThrow.class);
-        orbThrow.orbThrowCallback.damage = orbThrow.orbThrowCallback.damage + buff;
-        
-        PotionEffect ascendedSpeed = new PotionEffect(PotionEffectType.SPEED, duration, 7);
-        PotionEffect ascendedJump = new PotionEffect(PotionEffectType.JUMP_BOOST, duration, 3);
+        if (orbThrow != null) {
+            orbThrow.addDamageBonus(buff);
+        }
 
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        TheAscendedRepeater reverseBuffs = new TheAscendedRepeater(duration, owner, buff);
-        abilityLogger.schedule(reverseBuffs);
+        PotionEffect ascendedSpeed = new PotionEffect(PotionEffectType.SPEED, duration, settingInt("speed-amplifier"));
+        PotionEffect ascendedJump = new PotionEffect(PotionEffectType.JUMP_BOOST, duration, settingInt("jump-amplifier"));
+
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
+        TheAscendedRepeater reverseBuffs = new TheAscendedRepeater(duration, owner, buff, setting("end-health"), this,
+            grandSlam, threeHits, orbThrow);
+        abilityScheduler.schedule(reverseBuffs);
 
         AttributeInstance movement = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (movement == null) {
-            return false;
-        } 
+            return Activation.FAILED;
+        }
 
-        movement.setBaseValue(0.18); 
+        movement.setBaseValue(setting("walk-speed"));
 
         player.addPotionEffect(ascendedJump);
         player.addPotionEffect(ascendedSpeed);
 
-        playParticleEffect();
+        playParticleEffect(duration);
 
-        cooldownLogger.startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
 
-    @Override
-    public void playParticleEffect() {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        AnimatedBallEffect effect = new AnimatedBallEffect(effectManager);
-
-        effect.setEntity(owner.getPlayer());
-        
-        effect.particle = Particle.DUST;
-        effect.colorList = new ArrayList<Color>(Arrays.asList(Color.BLACK, Color.RED, Color.PURPLE));
-        effect.particles = 150;
-        effect.particlesPerIteration = 10;
-        effect.size = 1f;
-
-        effect.xFactor = 1f;
-        effect.yFactor = 2f;
-        effect.zFactor = 1f;
-
-        effect.period = 1;
-        effect.iterations = 260;
-
-        effect.start();
+    private void playParticleEffect(int duration) {
+        BattlePlugin.getInstance().getParticleService().follow(owner, NathanParticles.ASCENDED_AURA, owner.getPlayer(), duration);
     }
 }
-

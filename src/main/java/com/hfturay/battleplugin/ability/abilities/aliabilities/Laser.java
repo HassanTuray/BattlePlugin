@@ -1,55 +1,38 @@
 package com.hfturay.battleplugin.ability.abilities.aliabilities;
 
+import org.bukkit.Color;
+import org.bukkit.Particle;
+
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.HitScanAbility;
-import com.hfturay.battleplugin.abilityschedulerservice.AbilityLogger;
+import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.abilityschedulerservice.AbilityScheduler;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
+import de.slikey.effectlib.effect.LineEffect;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.ability.Activation;
 
+/** Every number comes from abilities.yml (Laser section). damage is dealt every tick the beam is on someone. */
+@RequiresSettings({ "cooldown", "duration-ticks", "range", "damage" })
 public class Laser extends HitScanAbility {
-    private int duration = 140;
 
     public Laser(BattlePlayer owner) {
         super(owner);
-        
+
         this.setDisplayName("Laser");
-        this.setCoolDown(15);
-
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
-
-        this.range = 9;
-        this.damage = 1;
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
+    protected Activation onActivate() {
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
+        LaserRepeater laserDamage = new LaserRepeater(settingInt("duration-ticks"), this, owner, setting("damage"), setting("range"));
+        abilityScheduler.schedule(laserDamage);
 
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
-
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        LaserRepeater laserDamage = new LaserRepeater(duration, owner, damage, range);
-        abilityLogger.schedule(laserDamage);
-
-        cooldownLogger.startCooldown(owner, this);
-        return true;
+        return Activation.USED;
     }
     
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
-    }
     
 }

@@ -9,10 +9,11 @@ import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 
 import com.hfturay.battleplugin.BattlePlugin;
+import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.abilityschedulerservice.ScheduledAbilityTask;
-import com.hfturay.battleplugin.falldamageservice.FallDamageLogger;
+import com.hfturay.battleplugin.combatservice.FallImmunityService;
 
-import com.hfturay.battleplugin.stunservice.StunLogger;
+import com.hfturay.battleplugin.stunservice.StunService;
 
 import de.slikey.effectlib.EffectManager;
 import de.slikey.effectlib.effect.FlameEffect;
@@ -21,70 +22,55 @@ public class GrandSlamDownRepeater extends ScheduledAbilityTask {
     private Entity target;
     private double damage;
 
-    public GrandSlamDownRepeater(int duration, Entity target, Double damage) {
-        super(duration);
+    public GrandSlamDownRepeater(int duration, Entity target, Double damage, Ability ability) {
+        super(duration, ability);
         this.target = target;
         this.damage = damage;
     }
 
     @Override
-    public boolean update() {
-        StunLogger stunLogger = BattlePlugin.getInstance().getStunLogger();
+    protected void onTick() {
+        StunService stunLogger = BattlePlugin.getInstance().getStunService();
         if (!stunLogger.isStunned(target)) {
-            BattlePlugin.getInstance().getLogger().info("Target is no longer stunned, canceling");
-            this.cancel();
-            return super.update();
+            cancel();    // the stun ended some other way, nothing left to do
+            return;
         }
 
         if (!(target instanceof Damageable)) {
-            BattlePlugin.getInstance().getLogger().info("Target is not a damageable, canceling");
-            this.cancel();
-            return super.update();
+            finishNow(); // cannot be hurt: just release it
+            return;
         }
 
-        FallDamageLogger fallDamageLogger = BattlePlugin.getInstance().getFallDamageLogger();
-
-        if (fallDamageLogger.isGrounded(target) || 
-            target.isInWater() || 
-            target.isInLava() || 
+        if (FallImmunityService.isGrounded(target) ||
+            target.isInWater() ||
+            target.isInLava() ||
             target.isInPowderedSnow()) {
-            
-            ((Damageable) target).damage(damage);
-            stunLogger.removeStun(target);
-            slamEffect(target);
-            
-            BattlePlugin.getInstance().getLogger().info("Target is grounded, canceling");
-            this.cancel();
-            return true;
-        }
 
-        return super.update();
+            BattlePlugin.getInstance().getDamageService().damage(ability.getOwner(), target, damage);
+            slamEffect(target);
+            finishNow(); // releases the stun
+        }
     }
 
     @Override
-    public void run() {
-        BattlePlugin.getInstance().getLogger().info("Target did not hit ground, unstunning");
-        StunLogger stunLogger = BattlePlugin.getInstance().getStunLogger();
+    protected void onFinish() {
+        release();
+    }
 
+    @Override
+    protected void onCancel() {
+        release();
+    }
+
+    private void release() {
+        StunService stunLogger = BattlePlugin.getInstance().getStunService();
         if (stunLogger.isStunned(target)) {
             stunLogger.removeStun(target);
         }
     }
 
     private void slamEffect(Entity target) {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        FlameEffect effect = new FlameEffect(effectManager);
-
-        effect.setLocation(target.getLocation());
-        
-        effect.particle = Particle.DUST;
-        effect.colorList = new ArrayList<Color>(Arrays.asList(Color.BLACK, Color.RED, Color.PURPLE));
-        effect.particleSize = 1.5f;
-        effect.particles = 60;
-
-        effect.period = 1;
-        effect.iterations = 2;
-        
-        effect.start();
+        BattlePlugin.getInstance().getParticleService()
+            .burst(ability.getOwner(), NathanParticles.SLAM_LANDING, target.getLocation());
     }
 }

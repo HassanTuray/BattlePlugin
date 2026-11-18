@@ -1,0 +1,54 @@
+# Kits: which abilities a player starts with.
+#
+# When someone joins, this is how their loadout is chosen (first match wins):
+#   1. They already have a saved loadout (plugins/BattlePlugin/playerdata/<uuid>.yml)  -> that is used. This file is not read.
+#   2. Their UUID is listed under "players"
+#   3. Their username is listed under "players" (not case-sensitive)
+#   4. The "default" kit, if there is one
+#
+# A new friend only needs a line under "players" with their username. Nobody needs their UUID in advance.
+# Use "/kits reload" after editing, and "/kits apply <player>" to give an online player their kit again
+# (a saved loadout wins over this file, so apply is how a change here reaches someone who has already played).
+#
+# Ability names are the ones /load accepts (brick, lazer, landmine ...). Each ability goes under its own item:
+# attack, mobility, buff, elemental or shikigami. A mistake in this file is reported in the console and skipped; it never stops joining.
+
+# Kit for anyone not listed under "players". Use "none" to give them nothing.
+default: starter
+
+kits:
+  starter:
+    attack: [brick]
+    mobility: [leap]
+    buff: [adrenaline]
+
+  damon:
+    attack: [brick, homebrew, lazer, landmine]
+    mobility: [leap, disengage]
+    buff: [adrenaline, switchonalazer]
+
+  ali:
+    attack: [brick, pharahrocket, laser, bigbang]
+    mobility: [leap, teleport]
+    buff: [adrenaline, cheesesandwichandtangerines]
+
+  muhammad:
+    attack: [brick, pipebomb, anthraxpackage, meltdownofwaves]
+    mobility: [leap, shortcut]
+    buff: [adrenaline, revolutionaryspirit]
+
+  nathan:
+    attack: [brick, orbthrow, threehits, grandslam]
+    mobility: [leap, strongleap]
+    buff: [adrenaline, theascended]
+
+# Who gets which kit. The key is a username or a UUID.
+players:
+  KingGorbnak: damon
+  9879aa16-ac68-3671-97cd-94014f583414: damon   # KingGorbnak, local server
+  d3a36ab7-6397-47c9-91ac-1e84bf1762f1: damon   # KingGorbnak, public server
+  91ecb5bc-04d8-4f46-9ae1-2fd48823ac2c: damon   # TheDamester
+  9ca465a8-9ce6-47ba-a835-da96a4243128: ali     # Beshboy
+  2c9324ec-31d8-48b8-b0dc-43878d09e1cc: muhammad  # Mo
+  0c62a5a2-e5d4-447a-a710-18e376c2792f: nathan  # Epikram
+  # Add friends by username, for example:   TheirName: nathan

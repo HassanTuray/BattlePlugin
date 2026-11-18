@@ -10,40 +10,30 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 
-import de.slikey.effectlib.EffectManager;
 import de.slikey.effectlib.effect.ShieldEffect;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import com.hfturay.battleplugin.particleservice.ParticleService;
+import com.hfturay.battleplugin.ability.Activation;
 
+/** Every number comes from abilities.yml (CheeseSandwichAndTangerines section). */
+@RequiresSettings({ "cooldown", "duration-ticks", "amplifier" })
 public class CheeseSandwichAndTangerines extends Ability {
-    private int duration = 80;
-    private int amp = 2;
 
     public CheeseSandwichAndTangerines(BattlePlayer owner) {
         super(owner);
-        
-        this.setDisplayName("Cheese Sandwhich and Tangerines");
-        this.setCoolDown(25);
 
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
+        this.setDisplayName("Cheese Sandwhich and Tangerines");
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
-
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
-
-            return false;
-        }
+    protected Activation onActivate() {
+        int duration = settingInt("duration-ticks");
+        int amp = settingInt("amplifier");
 
         PotionEffect invis = new PotionEffect(PotionEffectType.INVISIBILITY, duration, amp);
         PotionEffect regen = new PotionEffect(PotionEffectType.REGENERATION, duration, amp);
@@ -53,30 +43,13 @@ public class CheeseSandwichAndTangerines extends Ability {
         Player player = owner.getPlayer();
         player.addPotionEffects(Arrays.asList(invis, regen, absorb, speed));
 
-        playParticleEffect();
+        BattlePlugin.getInstance().getParticleService().follow(owner, AliParticles.SHIELD, player, ParticleService.UNTIL_DONE);
 
-        return true;
+        return Activation.USED;
     }
 
     @Override
     public void playParticleEffect() {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        ShieldEffect effect = new ShieldEffect(effectManager);
 
-        effect.setLocation(owner.getPlayer().getLocation());
-        effect.particle = Particle.DUST;
-        effect.color = Color.BLACK;
-        effect.particles = 150;
-        effect.particleSize = 3.5f;
-
-        effect.radius = 2.1;
-
-        effect.period = 1;
-        effect.iterations = 5;
-
-        effect.sphere = true;
-
-        effect.start();
     }
-    
 }

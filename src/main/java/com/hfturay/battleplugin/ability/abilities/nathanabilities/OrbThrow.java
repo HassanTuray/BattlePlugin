@@ -1,73 +1,57 @@
 package com.hfturay.battleplugin.ability.abilities.nathanabilities;
 
 import com.hfturay.battleplugin.BattlePlugin;
+import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.ProjectileAbility;
-import com.hfturay.battleplugin.abilityschedulerservice.AbilityLogger;
+import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.abilityschedulerservice.AbilityScheduler;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
-import com.hfturay.battleplugin.cooldownservice.CooldownLogger;
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-
+/**
+ * An orb that flies through players. After `homing-distance` blocks it turns around and homes in on the caster
+ * (`turn-strength`), hitting for `homing-damage-multiplier` times as much; it ends when it reaches them
+ * (`catch-radius`). Every number comes from abilities.yml (OrbThrow section). The damage includes any buff from The Ascended.
+ */
+@RequiresSettings({ "cooldown", "speed", "hitbox", "max-ticks", "damage", "homing-distance", "turn-strength",
+    "homing-damage-multiplier", "catch-radius" })
 public class OrbThrow extends ProjectileAbility {
-    public OrbThrowCallback orbThrowCallback = new OrbThrowCallback();
 
     public OrbThrow(BattlePlayer owner) {
         super(owner);
-        
-        this.setDisplayName("Orb Throw");
-        this.setCoolDown(7);
-        
-        String abilityNameId = this.getDisplayName().replace(" ", "_");
-        String id = owner.getPlayer().getName() + ":" + abilityNameId;
-        this.setId(id);
 
-        this.speed = 1;
-        this.hitbox = 0.5;
-        this.maxTicks = 300;
-        this.callback = new OrbThrowCallback();
-        this.effect = new OrbThrowParticleEffect();
+        this.setDisplayName("Orb Throw");
     }
 
     @Override
-    public boolean activate() {
-        CooldownLogger cooldownLogger = BattlePlugin.getInstance().getCoolDownLogger();
+    protected Activation onActivate() {
+        this.speed = setting("speed");
+        this.hitbox = setting("hitbox");
+        this.maxTicks = settingInt("max-ticks");
+        this.particles = OrbThrowParticles.SPEC;
 
-        if (cooldownLogger.isOnCooldown(owner, this)) {
-            long remainingCooldown = cooldownLogger.getRemainingCooldown(owner, this);
-            this.owner.getPlayer().sendActionBar(Component.text("Cooldown: " + remainingCooldown + " seconds", NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
+        OrbThrowCallback orbCallback = new OrbThrowCallback(setting("damage") + getDamageBonus());
+        this.callback = orbCallback;
 
-            return false;
-        }
-
-        VirtualProjectile virtualProjectile = new VirtualProjectile (
-            speed, 
-            maxTicks, 
-            owner, 
-            hitbox, 
+        VirtualProjectile virtualProjectile = new VirtualProjectile(
+            speed,
+            maxTicks,
+            owner,
+            hitbox,
             callback,
-            effect
+            particles
         );
 
         this.virtualProjectile = virtualProjectile;
-   
-        virtualProjectile.setParticleEffectPeriod(2);
+
         virtualProjectile.setStopOnHitPlayer(false);
         launch();
 
-        OrbThrowRepeater repeater = new OrbThrowRepeater(maxTicks, virtualProjectile, owner.getPlayer().getEyeLocation());
-        AbilityLogger abilityLogger = BattlePlugin.getInstance().getAbilityLogger();
-        abilityLogger.schedule(repeater);
-        cooldownLogger.startCooldown(owner, this);
-
-        return true;
-    }
-
-    @Override
-    public void playParticleEffect() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'playParticleEffect'");
+        OrbThrowRepeater repeater = new OrbThrowRepeater(maxTicks, virtualProjectile, owner.getPlayer().getEyeLocation(), this,
+            orbCallback, setting("homing-distance"), setting("turn-strength"),
+            setting("homing-damage-multiplier"), setting("catch-radius"));
+        AbilityScheduler abilityScheduler = BattlePlugin.getInstance().getAbilityScheduler();
+        abilityScheduler.schedule(repeater);
+        return Activation.USED;
     }
 }

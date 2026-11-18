@@ -1,13 +1,17 @@
 package com.hfturay.battleplugin.loggerservice;
 
-import org.bukkit.event.Listener;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.logging.Level;
 
+import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -18,56 +22,81 @@ import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.items.AbilityItemFactory;
 
+/**
+ * Keeps the ability data (BattlePlayer) for everyone online.
+ *
+ * register() is the one way a player gets set up: it is used when they join, and for everyone already online when
+ * the plugin starts, so /reload no longer leaves online players without ability data.
+ */
 public class PlayerLogger implements Listener {
-    private static HashMap<UUID, BattlePlayer> players = new HashMap<>();
-    private final double BASE_HEALTH = 40;
+    private static final HashMap<UUID, BattlePlayer> players = new HashMap<>();
 
-    /*
-     * Everytime a player joins a new battleplayer object is created
-     * If they are a dup then they are not added to the hashmap
-     * However, what happens to this dupe after has been created
-     * Consider checking if the player is a dupe via uuid before wrapping then in a battleplayer
-     */
-
-     /*
-      * Consider saving the battle player history in some file 
-      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent e) {
-        Player bukkitPlayer = e.getPlayer();
-        bukkitPlayer.setFoodLevel(16);
+        register(e.getPlayer());
+    }
 
-        BattlePlugin.getInstance().getLogger().info("Someone joined");
-        BattlePlugin.getInstance().getLogger().info(bukkitPlayer.getName() + ": " +  bukkitPlayer.getUniqueId().toString());
+    /**
+     * Sets a player up: ability data (saved loadout, or their kit), their three items, health and food.
+     * Safe to call for someone who is already set up; their loadout is left alone then.
+     */
+    public static BattlePlayer register(Player bukkitPlayer) {
+        BattlePlugin plugin = BattlePlugin.getInstance();
+        UUID id = bukkitPlayer.getUniqueId();
 
-        if (!players.containsKey(bukkitPlayer.getUniqueId())) {
-            BattlePlayer battlePlayer = new BattlePlayer(bukkitPlayer);
-            players.put(bukkitPlayer.getUniqueId(), battlePlayer);
-            giveAbilityItems(battlePlayer);
-
-            BattlePlugin.getInstance().getLogger().info("Newbie");
-        } else {
-            giveAbilityItems(players.get(bukkitPlayer.getUniqueId()));
-            BattlePlugin.getInstance().getLogger().info("Not their first rodeo");
+        BattlePlayer battlePlayer = players.get(id);
+        if (battlePlayer == null) {
+            battlePlayer = new BattlePlayer(bukkitPlayer);
+            try {
+                plugin.getKitService().setUp(battlePlayer, bukkitPlayer.getName(), plugin.getAbilityFactory()::create);
+            } catch (RuntimeException ex) {
+                // A bad loadout must never stop someone joining; they keep whatever loaded.
+                plugin.getLogger().log(Level.WARNING, "Could not set up the abilities for " + bukkitPlayer.getName(), ex);
+            }
+            players.put(id, battlePlayer);
         }
 
-        AttributeInstance maxHealth = bukkitPlayer.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        applyVitals(bukkitPlayer);
+        giveAbilityItems(battlePlayer);
+        return battlePlayer;
+    }
 
+    /** Sets up everyone already online. Used when the plugin starts or is reloaded. Returns how many were new. */
+    public static int registerOnline() {
+        int added = 0;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            boolean isNew = !players.containsKey(player.getUniqueId());
+            register(player);
+            if (isNew) {
+                added++;
+            }
+        }
+        return added;
+    }
+
+    private static void applyVitals(Player bukkitPlayer) {
+        BattlePlugin plugin = BattlePlugin.getInstance();
+        bukkitPlayer.setFoodLevel(plugin.getSettings().foodLevel());
+
+        AttributeInstance maxHealth = bukkitPlayer.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(BASE_HEALTH);
+            maxHealth.setBaseValue(plugin.getSettings().baseHealth());
         }
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent e) {
         Player bukkitPlayer = e.getPlayer();
-        bukkitPlayer.setFoodLevel(16);
+        applyVitals(bukkitPlayer);
 
-        AttributeInstance maxHealth = bukkitPlayer.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-
-        if (maxHealth != null) {
-            maxHealth.setBaseValue(BASE_HEALTH);
-        }
+        // Ability items do not drop on death, so hand them back (a tick later, once the respawn has finished).
+        BattlePlugin plugin = BattlePlugin.getInstance();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            BattlePlayer battlePlayer = players.get(bukkitPlayer.getUniqueId());
+            if (battlePlayer != null && bukkitPlayer.isOnline()) {
+                giveAbilityItems(battlePlayer);
+            }
+        });
     }
 
     @EventHandler
@@ -79,49 +108,73 @@ public class PlayerLogger implements Listener {
         }
 
         UUID uuid = player.getUniqueId();
-        DeathLogger.killShikigami(uuid);
+        BattlePlayer leaving = players.get(uuid);
+        if (leaving != null) {
+            BattlePlugin.getInstance().getLoadoutStore().save(uuid, leaving.getLoadout());
+        }
+        BattlePlugin.getInstance().getShikigamiService().killOwnedBy(uuid);
+        BattlePlugin.getInstance().getInputService().forget(uuid);
+        BattlePlugin.getInstance().getCooldownService().prune(uuid);
+        BattlePlugin.getInstance().getAbilityScheduler().cancelAll(uuid);
+        BattlePlugin.getInstance().getProjectileService().cancelAll(uuid);
+        BattlePlugin.getInstance().getStunService().clear(uuid);
+        BattlePlugin.getInstance().getImmunityService().clearAll(uuid);
+        BattlePlugin.getInstance().getFallImmunityService().clearFallImmunity(uuid);
+        BattlePlugin.getInstance().getParticleService().cancelAll(uuid);
+        BattlePlugin.getInstance().getVisualService().cancelAll(uuid);
         players.remove(uuid);
 
-        BattlePlugin.getInstance().getLogger().info("removing you!");
     }
 
-    private void giveAbilityItems(BattlePlayer battlePlayer) {
+    private static void giveAbilityItems(BattlePlayer battlePlayer) {
         Player bukkitPlayer = battlePlayer.getPlayer();
         PlayerInventory inv = bukkitPlayer.getInventory();
 
         boolean hasAttackItem = false;
         boolean hasBuffItem = false;
         boolean hasMobilityItem = false;
+        boolean hasElementalItem = false;
+        boolean hasShikigamiItem = false;
 
         for (ItemStack stack : inv.getContents()) {
-            // should check which item they are individually 
             if (AbilityItemFactory.isAttackItem(stack)) {
-                BattlePlugin.getInstance().getLogger().info("This player has an attack item");
                 hasAttackItem = true;
             } else if (AbilityItemFactory.isMobilityItem(stack)) {
-                BattlePlugin.getInstance().getLogger().info("This player has a mobility item");
                 hasMobilityItem = true;
             } else if (AbilityItemFactory.isBuffItem(stack)) {
-                BattlePlugin.getInstance().getLogger().info("This player has a buff item");
                 hasBuffItem = true;
+            } else if (AbilityItemFactory.isElementalItem(stack)) {
+                hasElementalItem = true;
+            } else if (AbilityItemFactory.isShikigamiItem(stack)) {
+                hasShikigamiItem = true;
             }
         }
-        
+
         if (!hasAttackItem) {
-            ItemStack bukkitItem = battlePlayer.getAttackItem().getItem();
-            inv.addItem(bukkitItem);
-            BattlePlugin.getInstance().getLogger().info("Giving attack");
+            inv.addItem(battlePlayer.getAttackItem().getItem());
         }
         if (!hasBuffItem) {
-            ItemStack bukkitItem = battlePlayer.getBuffItem().getItem();
-            inv.addItem(bukkitItem);
-            BattlePlugin.getInstance().getLogger().info("giving buff");
+            inv.addItem(battlePlayer.getBuffItem().getItem());
         }
         if (!hasMobilityItem) {
-            ItemStack bukkitItem = battlePlayer.getMobilityItem().getItem();
-            inv.addItem(bukkitItem);
-            BattlePlugin.getInstance().getLogger().info("giving mobility");
+            inv.addItem(battlePlayer.getMobilityItem().getItem());
         }
+        if (!hasElementalItem) {
+            inv.addItem(battlePlayer.getElementalItem().getItem());
+        }
+        if (!hasShikigamiItem) {
+            inv.addItem(battlePlayer.getShikigamiItem().getItem());
+        }
+    }
+
+    /** Everyone currently online with ability data. */
+    public static Collection<BattlePlayer> getAll() {
+        return new ArrayList<>(players.values());
+    }
+
+    /** Forgets everyone. Used when the plugin shuts down. */
+    public static void clear() {
+        players.clear();
     }
 
     public static BattlePlayer getBattlePlayer(UUID uuid) {

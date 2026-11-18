@@ -2,115 +2,77 @@ package com.hfturay.battleplugin.ability.abilities.damonabilities;
 
 import java.util.List;
 
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
-import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
+import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.abilityschedulerservice.ScheduledAbilityTask;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.particleservice.ParticleHandle;
 import com.hfturay.battleplugin.targetingservice.AOE;
-
-import de.slikey.effectlib.EffectManager;
-import de.slikey.effectlib.effect.CylinderEffect;
+import com.hfturay.battleplugin.combatservice.Knockback;
 
 public class LandMineRepeater extends ScheduledAbilityTask{
-    private Location location;  
-    private double radius = 5;
+    private Location location;
+    private final double radius;
+    private final double damage;
+    private final double knockback;
     private BattlePlayer owner;
 
-    public LandMineRepeater(BattlePlayer owner, Location location, int duration) {
-        super(duration);
+    // The armed-mine visual is started once and lives exactly as long as the mine can trigger.
+    private final ParticleHandle visual;
+
+    public LandMineRepeater(BattlePlayer owner, Location location, int duration, double radius, double damage, double knockback, Ability ability) {
+        super(duration, ability);
 
         this.owner = owner;
         this.location = location;
+        this.radius = radius;
+        this.damage = damage;
+        this.knockback = knockback;
+        this.visual = BattlePlugin.getInstance().getParticleService()
+            .zone(owner, LandMineParticles.SPEC, location, duration)
+            .survivesOwnerDeath();      // the mine stays armed after its owner dies, so it stays visible
+    }
+
+    // A placed mine stays armed even if its owner dies.
+    @Override
+    public boolean cancelOnOwnerDeath() {
+        return false;
     }
 
     @Override
-    public boolean update() {
-        List<Entity> targets = AOE.getTargets(owner, location, radius);
-        Vector knockback = null;
+    protected void onCancel() {
+        visual.cancel();
+    }
 
-        playParticleEffect();
+    @Override
+    protected void onTick() {
+        List<Entity> targets = AOE.getTargets(owner, location, radius);
 
         if (targets.isEmpty()) {
-            return super.update();
+            return;
         }
 
-        BattlePlugin.getInstance().getWorld().spawnParticle(Particle.EXPLOSION, location.clone(), 1);
+        visual.cancel();
+        BattlePlugin.getInstance().getParticleService().burst(owner, LandMineParticles.EXPLOSION, location);
         for (Entity entity : targets) {
             if (entity instanceof Damageable) {
-                ((Damageable) entity).damage(4);
+                BattlePlugin.getInstance().getDamageService().damage(owner, entity, damage);
 
-                knockback = entity.getLocation().toVector().subtract(location.toVector()).normalize().multiply(1.2);
-                entity.setVelocity(knockback);
+                Knockback.away(location, entity, knockback);
             }
         }
 
-        this.cancel();
-        return super.update();
+        cancel();    // triggered: no more ticks (the visual is already ended above)
     }
 
     @Override
-    public void run() {
-
+    protected void onFinish() {
+        // Nobody stepped on it before it timed out.
+        visual.cancel();
     }
-
-    public void playParticleEffect() {
-        EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-        
-        CylinderEffect landMine = new CylinderEffect(effectManager);
-
-        landMine.particle = Particle.DUST;
-        landMine.color = Color.GRAY;
-        landMine.solid = true;
-        
-        landMine.particles = 20;
-        landMine.setLocation(location.clone().add(0, 1, 0));
-
-        landMine.period = 1;
-        landMine.iterations = 1;
-
-        landMine.height = 0.15f;
-        landMine.radius = 0.5f;
-        landMine.enableRotation = false;
-
-        landMine.start();
-        
-        CylinderEffect button = new CylinderEffect(effectManager);
-
-        button.particle = Particle.DUST;
-        button.color = Color.RED;
-        button.solid = true;
-        
-        button.particles = 5;
-        button.particleSize = 0.5f;
-        button.setLocation(location.clone().add(0, 1.15, 0));
-
-        button.period = 1;
-        button.iterations = 1;
-
-        button.height = 0.15f;
-        button.radius = 0.2f;
-        button.enableRotation = false;
-
-        button.start();
-    }
-
-    // public void landMineExplodeParticleEffect() {
-    //     EffectManager effectManager = BattlePlugin.getInstance().getEffectManager();
-
-    //     ExplodeEffect explosion = new ExplodeEffect(effectManager);
-
-    //     explosion.setLocation(location);
-    //     explosion.amount = 10;
-    //     explosion.asynchronous = false;
-
-    //     explosion.start();
-
-    // }
-    
 }

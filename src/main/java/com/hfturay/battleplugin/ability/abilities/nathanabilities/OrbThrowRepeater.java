@@ -4,43 +4,54 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.abilityschedulerservice.ScheduledAbilityTask;
 import com.hfturay.battleplugin.projectileservice.MotionFunction;
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 
-public class OrbThrowRepeater extends ScheduledAbilityTask  {
-    private VirtualProjectile projectile;
-    private Location launchLocation;
-    private double turnStrength = 0.75;
+public class OrbThrowRepeater extends ScheduledAbilityTask {
+    private final VirtualProjectile projectile;
+    private final Location launchLocation;
+    private final OrbThrowCallback callback;
+    private final double homingDistance;
+    private final double turnStrength;
+    private final double homingDamageMultiplier;
+    private final double catchRadius;
     private boolean homing = false;
-    
-    public OrbThrowRepeater(int duration, VirtualProjectile projectile, Location launchLocation) {
-        super(duration);
-        
+
+    /** Every number comes from abilities.yml (OrbThrow section), read when the orb was thrown. */
+    public OrbThrowRepeater(int duration, VirtualProjectile projectile, Location launchLocation, Ability ability,
+                            OrbThrowCallback callback, double homingDistance, double turnStrength,
+                            double homingDamageMultiplier, double catchRadius) {
+        super(duration, ability);
+
         this.projectile = projectile;
         this.launchLocation = launchLocation;
+        this.callback = callback;
+        this.homingDistance = homingDistance;
+        this.turnStrength = turnStrength;
+        this.homingDamageMultiplier = homingDamageMultiplier;
+        this.catchRadius = catchRadius;
     }
 
     @Override
-    public boolean update() {
-        int ticksRemaining = projectile.getRemainingTicks();
-
-        if (ticksRemaining <= 0) {
-            this.cancel();
-            return super.update();
+    protected void onTick() {
+        if (projectile.getRemainingTicks() <= 0) {
+            finishNow();    // the orb expired
+            return;
         }
 
         double distanceTraveled = projectile.getLocation().toVector().subtract(launchLocation.toVector()).length();
         Player player = projectile.getOwner().getPlayer();
         Location playerLocation = player.getLocation().add(0, 1.5, 0);
 
-        if (distanceTraveled >= 15 && !homing) {
-            
+        if (distanceTraveled >= homingDistance && !homing) {
+
             MotionFunction homingFunction = new MotionFunction() {
 
                 @Override
                 public Vector apply(Vector previousVelocity, int tick) {
-                    if(player.isDead() || player == null || !player.isValid()) {
+                    if (player.isDead() || player == null || !player.isValid()) {
                         return previousVelocity;
                     }
 
@@ -61,22 +72,18 @@ public class OrbThrowRepeater extends ScheduledAbilityTask  {
             projectile.setMotionFunction(homingFunction);
             homing = true;
 
-            OrbThrowCallback callback = (OrbThrowCallback) projectile.getProjectileHitCallback();
-            callback.setDamage(callback.getDamage() * 2);
+            callback.setDamage(callback.getDamage() * homingDamageMultiplier);
         }
 
-        if (homing && playerLocation.clone().toVector().subtract(projectile.getLocation().toVector()).length() < 1) {
-            OrbThrowCallback callback = (OrbThrowCallback) projectile.getProjectileHitCallback();
-            callback.setDamage(3);
+        if (homing && playerLocation.clone().toVector().subtract(projectile.getLocation().toVector()).length() < catchRadius) {
             projectile.cancel();
-            this.cancel();
+            finishNow();
         }
-
-        return super.update();
     }
 
+    // Owner left or died, or the ability was removed: the orb goes with them.
     @Override
-    public void run() {
-        
+    protected void onCancel() {
+        projectile.cancel();
     }
 }
