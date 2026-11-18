@@ -16,3 +16,17 @@ resource-pack:
   # true = players must accept the pack to stay on the server
   required: true
   prompt: "Textures for the shikigami models"
+  # more packs, sent alongside the first (this one recolours the experience bar red for chaos)
+  extra-urls:
+    - "https://raw.githubusercontent.com/HassanTuray/BattlePlugin/main/resourcepack/ChaosBar.zip"
+
+# Chaos: the energy bar on the experience bar. Gained by dealing damage and kills, lost on death.
+# Later, domain expansions will need a full bar. Above "full" the bar stays full but the number keeps counting.
+chaos:
+  full: 100
+  # chaos per heart of damage dealt (1 heart = 2 health)
+  per-heart: 1
+  kill-gain: 10
+  death-loss: 15
+  # false = only damage to players counts, so hitting mobs cannot farm chaos
+  count-non-player-damage: false

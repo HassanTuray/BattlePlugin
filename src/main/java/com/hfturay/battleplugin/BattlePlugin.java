@@ -9,7 +9,9 @@ import com.hfturay.battleplugin.combatservice.DamageService;
 import com.hfturay.battleplugin.combatservice.FallImmunityService;
 import com.hfturay.battleplugin.glideservice.GlideService;
 import com.hfturay.battleplugin.combatservice.ImmunityService;
+import com.hfturay.battleplugin.chaosservice.ChaosService;
 import com.hfturay.battleplugin.commandservice.AbilityCommands;
+import com.hfturay.battleplugin.commandservice.ChaosCommand;
 import com.hfturay.battleplugin.commandservice.KitCommands;
 import com.hfturay.battleplugin.configservice.AbilityTuning;
 import com.hfturay.battleplugin.configservice.PluginSettings;
@@ -46,6 +48,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
     private LoadoutStore loadoutStore;
     private PluginSettings settings;
     private ResourcePackService resourcePackService;
+    private ChaosService chaosService;
     private KitService kitService;
     private AbilityTuning abilityTuning;
     private CooldownService cooldownService;
@@ -75,6 +78,9 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         settings = new PluginSettings();
         settings.load(getConfig(), getLogger());
         resourcePackService = new ResourcePackService(this);
+        chaosService = new ChaosService(this, new File(getDataFolder(), "chaos.yml"));
+        chaosService.load();
+        chaosService.reload(getConfig());
         File kitsFile = new File(getDataFolder(), "kits.yml");
         if (!kitsFile.exists()) {
             saveResource("kits.yml", false);
@@ -133,6 +139,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         pm.registerEvents(inputService, this);
         pm.registerEvents(shikigamiService, this);
         pm.registerEvents(resourcePackService, this);
+        pm.registerEvents(chaosService, this);
         resourcePackService.reload(getConfig());
         pm.registerEvents(visualService, this);
         pm.registerEvents(new DeathLogger(), this);
@@ -154,6 +161,15 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
             }
             command.setExecutor(abilityCommands);
             command.setTabCompleter(abilityCommands);
+        }
+
+        PluginCommand chaosCommand = getCommand("chaos");
+        if (chaosCommand == null) {
+            getLogger().warning("Command /chaos is missing from plugin.yml");
+        } else {
+            ChaosCommand chaosHandler = new ChaosCommand(chaosService);
+            chaosCommand.setExecutor(chaosHandler);
+            chaosCommand.setTabCompleter(chaosHandler);
         }
 
         KitCommands kitCommands = new KitCommands(this);
@@ -181,6 +197,9 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
             }
         }
         PlayerLogger.clear();
+        if (chaosService != null) {
+            chaosService.save();
+        }
 
         // Cancel ability tasks first so temporary buffs are undone and their visuals end.
         if (abilityScheduler != null) {
@@ -236,6 +255,10 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         return abilityTuning;
     }
 
+    public ChaosService getChaosService() {
+        return chaosService;
+    }
+
     public KitService getKitService() {
         return kitService;
     }
@@ -245,6 +268,7 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         reloadConfig();
         settings.load(getConfig(), getLogger());
         resourcePackService.reload(getConfig());
+        chaosService.reload(getConfig());
     }
 
     /**

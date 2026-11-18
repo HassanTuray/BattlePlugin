@@ -23,6 +23,10 @@ commands:
     usage: "/clearcooldowns [player]"
     permission: battleplugin.admin
 
+  chaos:
+    description: Show chaos, or (admins) set or add it
+    usage: "/chaos [player]  or  /chaos set|add <player> <amount>"
+
   kits:
     description: Reload config.yml and kits.yml, or give a player their kit
     usage: "/kits reload  or  /kits apply <player>  or  /kits list"

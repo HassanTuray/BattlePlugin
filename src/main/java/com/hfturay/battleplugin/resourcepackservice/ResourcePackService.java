@@ -7,7 +7,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,7 +46,7 @@ public final class ResourcePackService implements Listener {
         .connectTimeout(Duration.ofSeconds(15))
         .build();
 
-    private volatile Pack pack;
+    private final List<Pack> packs = new CopyOnWriteArrayList<>();
     private volatile boolean required = true;
     private volatile Component prompt = Component.empty();
     private int generation = 0;     // so a slow download of an old link cannot replace a newer one
@@ -55,36 +58,43 @@ public final class ResourcePackService implements Listener {
 
     /** Reads the settings and (re)downloads the pack in the background. Call from the main thread. */
     public void reload(ConfigurationSection config) {
-        String url = config.getString("resource-pack.url", "").trim();
+        List<String> urls = new ArrayList<>();
+        String main = config.getString("resource-pack.url", "").trim();
+        if (!main.isEmpty()) {
+            urls.add(main);
+        }
+        for (String extra : config.getStringList("resource-pack.extra-urls")) {
+            if (extra != null && !extra.isBlank()) {
+                urls.add(extra.trim());
+            }
+        }
         required = config.getBoolean("resource-pack.required", true);
         String promptText = config.getString("resource-pack.prompt", "");
         prompt = promptText == null || promptText.isBlank() ? Component.empty() : Component.text(promptText);
 
         int mine = ++generation;
-        pack = null;
-        if (url.isEmpty()) {
-            return;
+        packs.clear();
+        for (String url : urls) {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    byte[] sha1 = download(url);
+                    Pack ready = new Pack(url, sha1, UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        if (mine != generation) {
+                            return;     // reloaded again while this was downloading
+                        }
+                        packs.add(ready);
+                        logger.info("Resource pack ready (" + url + "). It is sent to players when they join.");
+                        for (Player player : plugin.getServer().getOnlinePlayers()) {
+                            send(player, ready);
+                        }
+                    });
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "Could not download the resource pack from " + url
+                        + ". It will not be sent until this is fixed and /kits reload is run.", e);
+                }
+            });
         }
-
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            try {
-                byte[] sha1 = download(url);
-                Pack ready = new Pack(url, sha1, UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (mine != generation) {
-                        return;     // reloaded again while this was downloading
-                    }
-                    pack = ready;
-                    logger.info("Resource pack ready (" + url + "). It is sent to players when they join.");
-                    for (Player player : plugin.getServer().getOnlinePlayers()) {
-                        send(player);
-                    }
-                });
-            } catch (Exception e) {
-                logger.log(Level.WARNING, "Could not download the resource pack from " + url
-                    + ". No pack will be sent until this is fixed and /kits reload is run.", e);
-            }
-        });
     }
 
     /** Downloads the link and returns the SHA-1 of what it served. Runs off the main thread. */
@@ -115,9 +125,8 @@ public final class ResourcePackService implements Listener {
         return sha1.digest();
     }
 
-    private void send(Player player) {
-        Pack current = pack;
-        if (current == null || !player.isOnline()) {
+    private void send(Player player, Pack current) {
+        if (!player.isOnline()) {
             return;
         }
         try {
@@ -129,6 +138,8 @@ public final class ResourcePackService implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        send(event.getPlayer());
+        for (Pack current : packs) {
+            send(event.getPlayer(), current);
+        }
     }
 }
