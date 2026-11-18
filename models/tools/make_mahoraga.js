@@ -110,6 +110,18 @@ function cube(name, mat, from, to, rot) {
   return id;
 }
 
+/**
+ * A cube that is never drawn: BetterModel reads its size (hitbox, shadow, name tag position) but a face with no
+ * texture is not rendered. Giving these a texture is what made a black box appear over the body.
+ */
+function marker(name, from, to) {
+  const id = cube(name, 'black', from, to);
+  const el = elements.find((e) => e.uuid === id);
+  el.faces = {};
+  for (const dir of ['north', 'east', 'south', 'west', 'up', 'down']) el.faces[dir] = { uv: [0, 0, 2, 2] };
+  return id;
+}
+
 /** The mirror image of a box across x = 0. */
 const mx = (from, to) => [[-to[0], from[1], from[2]], [-from[0], to[1], to[2]]];
 function cubePair(name, mat, from, to) {
@@ -253,9 +265,9 @@ function buildOutliner() {
   const body = group('body', [0, 0, 0], [leg('r'), leg('l'), under, upper]);
 
   return [
-    group('hitbox', [0, 0, 0], [cube('hitbox', 'black', [-10, 0, -6], [10, 58, 6])], { visibility: false }),
-    group('shadow', [0, 0, 0], [cube('shadow', 'black', [-14, 0, -11], [14, 0, 11])]),
-    group('tag_name', [0, 76, 4.5], [cube('tag_name', 'black', [-1, 75, 3.5], [1, 77, 5.5])]),
+    group('hitbox', [0, 0, 0], [marker('hitbox', [-10, 0, -6], [10, 58, 6])], { visibility: false }),
+    group('shadow', [0, 0, 0], [marker('shadow', [-14, 0, -11], [14, 0, 11])]),
+    group('tag_name', [0, 76, 4.5], [marker('tag_name', [-1, 75, 3.5], [1, 77, 5.5])]),
     body,
   ];
 }
