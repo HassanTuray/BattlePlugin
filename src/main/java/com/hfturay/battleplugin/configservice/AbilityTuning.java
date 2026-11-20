@@ -50,6 +50,15 @@ public final class AbilityTuning {
         // Shikigami
         "health", "attack-range", "attack-interval-ticks", "target-range", "follow-distance", "leash-distance",
         "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks", "flame-interval-ticks", "attack-hit-delay-ticks",
+        // Domain expansions
+        "dash-speed", "dash-delay-ticks", "hover-height", "hover-behind", "learn-damage", "learn-window-ticks", "scan-ticks", "scan-distance", "chaos-cost", "form-ticks", "tower-height", "flame-height", "endermen-count", "phantom-count", "warden-count",
+        "mobs-target-caster", "charge-ticks",
+        // Explosive Gravity Bomb
+        "pull-radius", "pull-force", "start-radius", "end-radius", "blast-radius",
+        // Shilajit
+        "heal",
+        // Joga Bonito
+        "return-speed",
         // Air Dome
         "speed-amplifier", "push-strength", "push-lift", "damage-interval-ticks",
         // Majestic Destroyer Flame

@@ -31,6 +31,8 @@ public class PipeBomb extends ProjectileAbility {
             particles
         );
 
+        virtualProjectile.setVisual(MuhammadVisuals.PIPE_BOMB);     // removed the moment the projectile ends
+
         this.virtualProjectile = virtualProjectile;
         virtualProjectile.setMotionFunction((v, t) -> v.setY(v.getY() - gravity));
         launch();

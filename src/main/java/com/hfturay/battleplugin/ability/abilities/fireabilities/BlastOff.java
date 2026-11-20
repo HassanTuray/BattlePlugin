@@ -8,10 +8,10 @@ import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 
 /**
  * The caster blasts off in the elytra flying pose and is pushed forward every tick along wherever they look, so the
- * mouse steers. Anyone close to them while they fly is burned. Every number comes from abilities.yml (BlastOff
+ * mouse steers. When they land a small explosion hurts and shoves back everyone near. Every number comes from abilities.yml (BlastOff
  * section), read each time it is cast.
  */
-@RequiresSettings({ "cooldown", "duration-ticks", "speed", "launch-lift", "damage", "radius", "interval-ticks" })
+@RequiresSettings({ "cooldown", "duration-ticks", "speed", "launch-lift", "damage", "radius", "knockback", "lift" })
 public class BlastOff extends Ability {
 
     public BlastOff(BattlePlayer owner) {
@@ -28,7 +28,8 @@ public class BlastOff extends Ability {
             setting("launch-lift"),
             setting("damage"),
             setting("radius"),
-            Math.max(1, settingInt("interval-ticks")));
+            setting("knockback"),
+            setting("lift"));
 
         BattlePlugin.getInstance().getAbilityScheduler().schedule(new BlastOffTask(owner, this, settings));
         return Activation.USED;

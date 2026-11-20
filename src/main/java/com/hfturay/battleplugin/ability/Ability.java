@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.combatservice.AbilityUseLog;
 import com.hfturay.battleplugin.cooldownservice.CooldownService;
 import com.hfturay.battleplugin.cooldownservice.SilenceService;
 
@@ -92,6 +93,12 @@ public abstract class Ability {
         }
 
         Activation result = onActivate();
+        if (result != Activation.FAILED) {
+            AbilityUseLog log = useLog();
+            if (log != null) {
+                log.record(id, getClass());
+            }
+        }
         if (result == Activation.USED) {
             startCooldown();
         }
@@ -150,6 +157,12 @@ public abstract class Ability {
     // The services come from the plugin. Overridable so the activation rules can be tested without a server.
     protected CooldownService cooldownService() {
         return BattlePlugin.getInstance().getCooldownService();
+    }
+
+    /** Who used what, for Guy to learn from. Null without a running plugin (the tests). */
+    protected AbilityUseLog useLog() {
+        BattlePlugin plugin = BattlePlugin.getInstance();
+        return plugin == null ? null : plugin.getAbilityUseLog();
     }
 
     protected SilenceService silenceService() {
@@ -218,6 +231,11 @@ public abstract class Ability {
 
     public BattlePlayer getOwner() {
         return this.owner;
+    }
+
+    /** True for an ability that is only lent for a while (a domain move). It is never saved with the loadout. */
+    public boolean isTemporary() {
+        return false;
     }
 
     public void cancel() {}

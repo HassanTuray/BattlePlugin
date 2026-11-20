@@ -37,6 +37,11 @@ kits:
     mobility: [leap, shortcut]
     buff: [adrenaline, revolutionaryspirit]
 
+  hassan:
+    attack: [brick, malware, explosivegravitybomb, jogabonito]
+    mobility: [leap, flyingraijin]     # flyingraijin = the Raijin mark arrow + Use Raijin
+    buff: [adrenaline, shilajit]
+
   nathan:
     attack: [brick, orbthrow, threehits, grandslam]
     mobility: [leap, strongleap]

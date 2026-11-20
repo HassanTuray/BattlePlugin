@@ -15,8 +15,8 @@ commands:
     usage: "/remove <skill> <player>  or  /remove <player1> <player2>"
     permission: battleplugin.admin
   clearabilities:
-    description: Remove every ability from a player
-    usage: "/clearabilities <player>"
+    description: Remove every ability from a player, or only those on one item
+    usage: "/clearabilities <player> [attack|mobility|buff|elemental|shikigami|domain]"
     permission: battleplugin.admin
   clearcooldowns:
     description: Make every ability usable right now (no player = yourself)
@@ -26,6 +26,15 @@ commands:
   chaos:
     description: Show chaos, or (admins) set or add it
     usage: "/chaos [player]  or  /chaos set|add <player> <amount>"
+
+  spawnmobs:
+    description: Spawn random zombies, skeletons and wither skeletons around you (testing)
+    usage: "/spawnmobs [type] [count] [radius]"
+    permission: battleplugin.admin
+  cutscene:
+    description: Play the cutscene test, or stop the one you are in
+    usage: "/cutscene test  or  /cutscene stop"
+    permission: battleplugin.admin
 
   kits:
     description: Reload config.yml and kits.yml, or give a player their kit

@@ -52,15 +52,11 @@ final class MuhammadParticles {
 
     // ---- Pipebomb ----
 
-    /** A small white pipe (0.5 tall, 0.1 radius), centred on the projectile. */
-    static final ParticleSpec PIPE_BOMB = DirectSpec.of(Particle.DUST)
-        .dust(0.6f, Color.WHITE)
-        .shape(DirectSpec.Shape.CYLINDER)
-        .radius(0.1)
-        .height(0.5)
-        .layers(4)
-        .count(16)
-        .offset(0, -0.25, 0)
+    /** A few small flames trailing off the pipe (the pipe itself is the iron block in MuhammadVisuals.PIPE_BOMB). */
+    static final ParticleSpec PIPE_BOMB = DirectSpec.of(Particle.FLAME)
+        .shape(DirectSpec.Shape.POINT)
+        .count(3)
+        .spread(0.08, 0.08, 0.08)
         .build();
 
     /** Two explosion puffs a block above the impact point. */

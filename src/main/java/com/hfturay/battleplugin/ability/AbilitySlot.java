@@ -6,7 +6,8 @@ public enum AbilitySlot {
     MOBILITY("mobility"),
     BUFF("buff"),
     ELEMENTAL("elemental"),
-    SHIKIGAMI("shikigami");
+    SHIKIGAMI("shikigami"),
+    DOMAIN("domain");
 
     private final String label;
 

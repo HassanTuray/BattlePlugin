@@ -47,7 +47,7 @@ import com.hfturay.battleplugin.items.AbilityItemFactory;
  */
 public final class InputService implements Listener {
 
-    public enum Click { USE, CYCLE }
+    public enum Click { USE, CYCLE, CYCLE_BACK }
 
     private final Function<UUID, BattlePlayer> players;
     private final BooleanSupplier dealingDamage;
@@ -87,6 +87,9 @@ public final class InputService implements Listener {
         }
         if (AbilityItemFactory.isShikigamiItem(item)) {
             return AbilitySlot.SHIKIGAMI;
+        }
+        if (AbilityItemFactory.isDomainItem(item)) {
+            return AbilitySlot.DOMAIN;
         }
         return null;
     }
@@ -140,7 +143,7 @@ public final class InputService implements Listener {
 
         switch (action) {
             case LEFT_CLICK_AIR, LEFT_CLICK_BLOCK -> run(player, slot, Click.USE);
-            case RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK -> run(player, slot, Click.CYCLE);
+            case RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK -> run(player, slot, player.isSneaking() ? Click.CYCLE_BACK : Click.CYCLE);
             default -> { }
         }
         return true;
@@ -173,7 +176,7 @@ public final class InputService implements Listener {
             return false;
         }
 
-        run(player, slot, Click.CYCLE);
+        run(player, slot, player.isSneaking() ? Click.CYCLE_BACK : Click.CYCLE);
         return true;
     }
 
@@ -194,6 +197,8 @@ public final class InputService implements Listener {
         try {
             if (click == Click.USE) {
                 battlePlayer.activateCurrent(slot);
+            } else if (click == Click.CYCLE_BACK) {
+                battlePlayer.previousAbility(slot);
             } else {
                 battlePlayer.nextAbility(slot);
             }

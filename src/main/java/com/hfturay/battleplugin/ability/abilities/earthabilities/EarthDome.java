@@ -22,7 +22,7 @@ import com.hfturay.battleplugin.tempblockservice.TempBlocks;
 
 /**
  * Raises a dome (the top half of a sphere, not a whole one) of earth blocks around the caster. Whatever was inside it
- * is turned to air for as long as the dome stands, the caster gets resistance and everyone inside gets night vision.
+ * is turned to air for as long as the dome stands, any gap in the ground under it is floored over, the caster gets resistance and everyone inside gets night vision.
  * Every number comes from abilities.yml (EarthDome section), read each time it is cast.
  */
 @RequiresSettings({ "cooldown", "radius", "thickness", "duration-ticks", "resistance-amplifier" })
@@ -67,6 +67,10 @@ public class EarthDome extends Ability {
                     if (distance <= innerLimit) {
                         if (dy >= 0 && !block.getType().isAir()) {
                             clear.add(BlockPos.of(block));        // inside: whatever is here is cleared
+                        } else if (dy == -1 && !block.getType().isSolid()) {
+                            // the floor: the layer under the caster's feet, filled wherever there is no ground
+                            wall.computeIfAbsent(EarthBlocks.PALETTE.get(random.nextInt(EarthBlocks.PALETTE.size())), m -> new ArrayList<>())
+                                .add(BlockPos.of(block));
                         }
                     } else if (dy >= 0 || !block.getType().isSolid()) {
                         // the wall; below the caster's feet it only fills open air, so it never digs into the ground

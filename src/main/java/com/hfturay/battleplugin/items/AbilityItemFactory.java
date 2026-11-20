@@ -64,9 +64,19 @@ public class AbilityItemFactory {
         return meta.getPersistentDataContainer().has(shikigamiItemKey, PersistentDataType.STRING);
     }
 
-    /** True for any of the five ability items. */
+    public static boolean isDomainItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey domainItemKey = new NamespacedKey(BattlePlugin.getInstance(), "domain-item");
+
+        return meta.getPersistentDataContainer().has(domainItemKey, PersistentDataType.STRING);
+    }
+
+    /** True for any of the six ability items. */
     public static boolean isAbilityItem(ItemStack item) {
         return isAttackItem(item) || isMobilityItem(item) || isBuffItem(item) || isElementalItem(item)
-            || isShikigamiItem(item);
+            || isShikigamiItem(item) || isDomainItem(item);
     }
 }

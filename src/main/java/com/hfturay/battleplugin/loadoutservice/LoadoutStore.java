@@ -62,6 +62,9 @@ public final class LoadoutStore {
         for (AbilitySlot slot : AbilitySlot.values()) {
             List<String> keys = new ArrayList<>();
             for (Ability ability : loadout.list(slot)) {
+                if (ability.isTemporary()) {
+                    continue;       // lent for a moment, never remembered
+                }
                 Optional<AbilityRegistry.Entry> entry = AbilityRegistry.of(ability.getClass());
                 if (entry.isPresent()) {
                     keys.add(entry.get().key());

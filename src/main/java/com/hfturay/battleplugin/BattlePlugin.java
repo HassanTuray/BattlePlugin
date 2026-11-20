@@ -12,6 +12,12 @@ import com.hfturay.battleplugin.combatservice.ImmunityService;
 import com.hfturay.battleplugin.chaosservice.ChaosService;
 import com.hfturay.battleplugin.commandservice.AbilityCommands;
 import com.hfturay.battleplugin.commandservice.ChaosCommand;
+import com.hfturay.battleplugin.commandservice.CutsceneCommand;
+import com.hfturay.battleplugin.commandservice.SpawnMobsCommand;
+import com.hfturay.battleplugin.cutsceneservice.CutsceneService;
+import com.hfturay.battleplugin.domainservice.DomainService;
+import com.hfturay.battleplugin.ability.abilities.hassanabilities.MalwareService;
+import com.hfturay.battleplugin.domainservice.neverendingnight.NeverendingNightService;
 import com.hfturay.battleplugin.commandservice.KitCommands;
 import com.hfturay.battleplugin.configservice.AbilityTuning;
 import com.hfturay.battleplugin.configservice.PluginSettings;
@@ -28,6 +34,8 @@ import com.hfturay.battleplugin.resourcepackservice.ResourcePackService;
 import com.hfturay.battleplugin.particleservice.ParticleService;
 import com.hfturay.battleplugin.projectileservice.ProjectileService;
 import com.hfturay.battleplugin.serversetup.HungerLogger;
+import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.GuyHelper;
+import com.hfturay.battleplugin.combatservice.AbilityUseLog;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiService;
 import com.hfturay.battleplugin.stunservice.StunService;
 import com.hfturay.battleplugin.visualservice.VisualService;
@@ -49,6 +57,12 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
     private PluginSettings settings;
     private ResourcePackService resourcePackService;
     private ChaosService chaosService;
+    private CutsceneService cutsceneService;
+    private DomainService domainService;
+    private NeverendingNightService neverendingNightService;
+    private MalwareService malwareService;
+    private GuyHelper guyHelper;
+    private final AbilityUseLog abilityUseLog = new AbilityUseLog();
     private KitService kitService;
     private AbilityTuning abilityTuning;
     private CooldownService cooldownService;
@@ -140,6 +154,16 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         pm.registerEvents(shikigamiService, this);
         pm.registerEvents(resourcePackService, this);
         pm.registerEvents(chaosService, this);
+        cutsceneService = new CutsceneService(this, new File(getDataFolder(), "cutscenes.yml"));
+        pm.registerEvents(cutsceneService, this);
+        cutsceneService.recover();
+        domainService = new DomainService(this);
+        neverendingNightService = new NeverendingNightService(this);
+        pm.registerEvents(neverendingNightService, this);
+        malwareService = new MalwareService();
+        pm.registerEvents(malwareService, this);
+        guyHelper = new GuyHelper();
+        pm.registerEvents(guyHelper, this);
         resourcePackService.reload(getConfig());
         pm.registerEvents(visualService, this);
         pm.registerEvents(new DeathLogger(), this);
@@ -172,6 +196,22 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
             chaosCommand.setTabCompleter(chaosHandler);
         }
 
+        PluginCommand spawnMobsCommand = getCommand("spawnmobs");
+        if (spawnMobsCommand != null) {
+            SpawnMobsCommand spawnMobsHandler = new SpawnMobsCommand(this);
+            spawnMobsCommand.setExecutor(spawnMobsHandler);
+            spawnMobsCommand.setTabCompleter(spawnMobsHandler);
+        }
+
+        PluginCommand cutsceneCommand = getCommand("cutscene");
+        if (cutsceneCommand == null) {
+            getLogger().warning("Command /cutscene is missing from plugin.yml");
+        } else {
+            CutsceneCommand cutsceneHandler = new CutsceneCommand(cutsceneService);
+            cutsceneCommand.setExecutor(cutsceneHandler);
+            cutsceneCommand.setTabCompleter(cutsceneHandler);
+        }
+
         KitCommands kitCommands = new KitCommands(this);
         PluginCommand kitsCommand = getCommand("kits");
         if (kitsCommand == null) {
@@ -190,6 +230,11 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
 
     @Override 
     public void onDisable() {
+        // End domains first of all: it takes back their effects, creatures and the temporary move, before loadouts are saved.
+        if (domainService != null) {
+            domainService.shutdown();
+        }
+
         // Remember everyone's loadout, since players are still online when the server stops or reloads.
         if (loadoutStore != null) {
             for (BattlePlayer battlePlayer : PlayerLogger.getAll()) {
@@ -199,6 +244,11 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
         PlayerLogger.clear();
         if (chaosService != null) {
             chaosService.save();
+        }
+
+        // Put cutscene viewers back (domains were already ended at the top).
+        if (cutsceneService != null) {
+            cutsceneService.shutdown();
         }
 
         // Cancel ability tasks first so temporary buffs are undone and their visuals end.
@@ -253,6 +303,30 @@ public class BattlePlugin extends org.bukkit.plugin.java.JavaPlugin {
 
     public AbilityTuning getAbilityTuning() {
         return abilityTuning;
+    }
+
+    public MalwareService getMalwareService() {
+        return malwareService;
+    }
+
+    public GuyHelper getGuyHelper() {
+        return guyHelper;
+    }
+
+    public AbilityUseLog getAbilityUseLog() {
+        return abilityUseLog;
+    }
+
+    public NeverendingNightService getNeverendingNightService() {
+        return neverendingNightService;
+    }
+
+    public DomainService getDomainService() {
+        return domainService;
+    }
+
+    public CutsceneService getCutsceneService() {
+        return cutsceneService;
     }
 
     public ChaosService getChaosService() {

@@ -120,21 +120,25 @@ public final class KitConfig {
         for (AbilitySlot slot : AbilitySlot.values()) {
             List<String> keys = new ArrayList<>();
             for (String listed : section.getStringList(slot.name().toLowerCase(Locale.ROOT))) {
-                Optional<AbilityRegistry.Entry> entry = AbilityRegistry.find(listed);
-                if (entry.isEmpty()) {
+                // a bundle name (flyingraijin) stands for all of its parts
+                List<AbilityRegistry.Entry> found = AbilityRegistry.findBundle(listed)
+                    .orElseGet(() -> AbilityRegistry.find(listed).map(List::of).orElse(List.of()));
+                if (found.isEmpty()) {
                     warn.accept("Kit '" + name + "': there is no ability called '" + listed + "'. Skipped.");
                     continue;
                 }
-                if (entry.get().slot() != slot) {
-                    warn.accept("Kit '" + name + "': '" + listed + "' belongs on the "
-                        + entry.get().slot().name().toLowerCase(Locale.ROOT) + " item, not " + slot.name().toLowerCase(Locale.ROOT) + ". Skipped.");
-                    continue;
+                for (AbilityRegistry.Entry entry : found) {
+                    if (entry.slot() != slot) {
+                        warn.accept("Kit '" + name + "': '" + listed + "' belongs on the "
+                            + entry.slot().name().toLowerCase(Locale.ROOT) + " item, not " + slot.name().toLowerCase(Locale.ROOT) + ". Skipped.");
+                        continue;
+                    }
+                    if (seen.contains(entry.key())) {
+                        continue;
+                    }
+                    seen.add(entry.key());
+                    keys.add(entry.key());
                 }
-                if (seen.contains(entry.get().key())) {
-                    continue;
-                }
-                seen.add(entry.get().key());
-                keys.add(entry.get().key());
             }
             abilities.put(slot, Collections.unmodifiableList(keys));
         }

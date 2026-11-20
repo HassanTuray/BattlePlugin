@@ -11,6 +11,7 @@ import com.hfturay.battleplugin.items.AttackItem;
 import com.hfturay.battleplugin.items.BuffItem;
 import com.hfturay.battleplugin.items.ElementalItem;
 import com.hfturay.battleplugin.items.MobilityItem;
+import com.hfturay.battleplugin.items.DomainItem;
 import com.hfturay.battleplugin.items.ShikigamiItem;
 
 import net.kyori.adventure.text.Component;
@@ -26,6 +27,7 @@ public class BattlePlayer {
     private BuffItem buffItem;
     private ElementalItem elementalItem;
     private ShikigamiItem shikigamiItem;
+    private DomainItem domainItem;
 
     // What this player has on each item, and which one each item has selected.
     // Any number of abilities per item (including none) is fine.
@@ -39,6 +41,7 @@ public class BattlePlayer {
         this.buffItem = new BuffItem(this);
         this.elementalItem = new ElementalItem(this);
         this.shikigamiItem = new ShikigamiItem(this);
+        this.domainItem = new DomainItem(this);
 
         // The loadout starts empty. PlayerLogger.register fills it from the saved file or kits.yml.
     }
@@ -78,6 +81,18 @@ public class BattlePlayer {
     /** Right-click: move to the next ability on this item and show its name. */
     public void nextAbility(AbilitySlot slot) {
         Ability ability = loadout.next(slot);
+
+        if (ability == null) {
+            sendNoAbilities(slot);
+            return;
+        }
+
+        this.bukkitPlayer.sendActionBar(Component.text(ability.getDisplayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
+    }
+
+    /** Shift + right-click: move to the previous ability on this item and show its name. */
+    public void previousAbility(AbilitySlot slot) {
+        Ability ability = loadout.previous(slot);
 
         if (ability == null) {
             sendNoAbilities(slot);
@@ -141,6 +156,14 @@ public class BattlePlayer {
 
     public ElementalItem getElementalItem() {
         return this.elementalItem;
+    }
+
+    public DomainItem getDomainItem() {
+        return domainItem;
+    }
+
+    public ArrayList<Ability> getDomainAbilities() {
+        return loadout.list(AbilitySlot.DOMAIN);
     }
 
     public ShikigamiItem getShikigamiItem() {

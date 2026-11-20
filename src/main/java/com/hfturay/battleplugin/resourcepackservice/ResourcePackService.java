@@ -21,23 +21,25 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
+import net.kyori.adventure.resource.ResourcePackInfo;
+import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.text.Component;
 
 /**
- * Sends the resource pack (the textures for BetterModel shikigami) to players when they join.
+ * Sends the resource packs (BetterModel textures, the red chaos bar) to players when they join.
  *
- * The pack is a zip somewhere with a direct download link (config.yml, resource-pack.url). When the plugin starts or
- * is reloaded it downloads that link once, works out the pack's SHA-1 itself, and then sends the link and hash to
- * each player who joins. So after replacing the zip, a "/kits reload" is all it takes; no hash to copy by hand.
- * Players who are already online get the new pack on their next join (or straight away when it first becomes ready).
+ * Each pack is a zip somewhere with a direct download link (config.yml, resource-pack.url and extra-urls). When the
+ * plugin starts or is reloaded it downloads each link once, works out the SHA-1 itself, and then sends all the packs
+ * to each player in ONE request. (Sending them one after another does not work: every send replaces the packs the
+ * player already has, so only the last one would stay.) After replacing a zip, "/kits reload" is all it takes.
  *
- * If the link is empty or cannot be downloaded, no pack is sent and the console says why.
+ * If a link cannot be downloaded, that pack is left out and the console says why.
  */
 public final class ResourcePackService implements Listener {
     /** Larger than any pack we expect, so a wrong link to some huge file cannot fill the server's memory. */
     private static final long MAX_BYTES = 200L * 1024 * 1024;
 
-    private record Pack(String url, byte[] sha1, UUID id) { }
+    private record Pack(String url, String sha1Hex, UUID id) { }
 
     private final Plugin plugin;
     private final Logger logger;
@@ -56,7 +58,7 @@ public final class ResourcePackService implements Listener {
         this.logger = plugin.getLogger();
     }
 
-    /** Reads the settings and (re)downloads the pack in the background. Call from the main thread. */
+    /** Reads the settings and (re)downloads the packs in the background. Call from the main thread. */
     public void reload(ConfigurationSection config) {
         List<String> urls = new ArrayList<>();
         String main = config.getString("resource-pack.url", "").trim();
@@ -74,31 +76,36 @@ public final class ResourcePackService implements Listener {
 
         int mine = ++generation;
         packs.clear();
-        for (String url : urls) {
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        if (urls.isEmpty()) {
+            return;
+        }
+
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            List<Pack> ready = new ArrayList<>();
+            for (String url : urls) {
                 try {
-                    byte[] sha1 = download(url);
-                    Pack ready = new Pack(url, sha1, UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        if (mine != generation) {
-                            return;     // reloaded again while this was downloading
-                        }
-                        packs.add(ready);
-                        logger.info("Resource pack ready (" + url + "). It is sent to players when they join.");
-                        for (Player player : plugin.getServer().getOnlinePlayers()) {
-                            send(player, ready);
-                        }
-                    });
+                    ready.add(new Pack(url, download(url),
+                        UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "Could not download the resource pack from " + url
                         + ". It will not be sent until this is fixed and /kits reload is run.", e);
                 }
+            }
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (mine != generation) {
+                    return;     // reloaded again while this was downloading
+                }
+                packs.addAll(ready);
+                logger.info("Resource packs ready (" + ready.size() + "). They are sent to players when they join.");
+                for (Player player : plugin.getServer().getOnlinePlayers()) {
+                    send(player);
+                }
             });
-        }
+        });
     }
 
-    /** Downloads the link and returns the SHA-1 of what it served. Runs off the main thread. */
-    private byte[] download(String url) throws Exception {
+    /** Downloads the link and returns the SHA-1 (hex) of what it served. Runs off the main thread. */
+    private String download(String url) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(60)).GET().build();
         HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if (response.statusCode() != 200) {
@@ -122,24 +129,32 @@ public final class ResourcePackService implements Listener {
         if (total == 0) {
             throw new IllegalStateException("the link served an empty file");
         }
-        return sha1.digest();
+        StringBuilder hex = new StringBuilder();
+        for (byte b : sha1.digest()) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
     }
 
-    private void send(Player player, Pack current) {
-        if (!player.isOnline()) {
+    private void send(Player player) {
+        if (packs.isEmpty() || !player.isOnline()) {
             return;
         }
         try {
-            player.setResourcePack(current.id(), current.url(), current.sha1(), prompt, required);
+            List<ResourcePackInfo> infos = new ArrayList<>();
+            for (Pack pack : packs) {
+                infos.add(ResourcePackInfo.resourcePackInfo()
+                    .id(pack.id()).uri(URI.create(pack.url())).hash(pack.sha1Hex()).build());
+            }
+            player.sendResourcePacks(ResourcePackRequest.resourcePackRequest()
+                .packs(infos).prompt(prompt).required(required).replace(true).build());
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Could not send the resource pack to " + player.getName(), e);
+            logger.log(Level.WARNING, "Could not send the resource packs to " + player.getName(), e);
         }
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        for (Pack current : packs) {
-            send(event.getPlayer(), current);
-        }
+        send(event.getPlayer());
     }
 }

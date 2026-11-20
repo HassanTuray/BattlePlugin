@@ -59,7 +59,7 @@ CheeseSandwichAndTangerines:
 
 PipeBomb:
   cooldown: 7
-  speed: 1.2
+  speed: 2.0
   max-ticks: 200         # 200 ticks = 10 seconds of flight
   hitbox: 0.7
   gravity: 0.03          # how much the bomb drops every tick (0 = flies straight)
@@ -168,9 +168,10 @@ BlastOff:
   duration-ticks: 60     # how long you fly, held in the flying pose (60 = 3 seconds)
   speed: 1.0             # blocks per tick you are pushed along where you look (1.0 = 20 blocks a second)
   launch-lift: 0.8       # upward speed for the first few ticks so you leave the ground
-  damage: 1              # health points to everyone close to you, each time (1 = half a heart)
-  radius: 1              # how close to your body someone must be to be burned, in blocks
-  interval-ticks: 15     # ticks between burns while someone stays close
+  damage: 3              # health points of the landing explosion (3 = 1.5 hearts)
+  radius: 5              # how far the landing explosion reaches, in blocks
+  knockback: 0.6         # how hard it shoves people away from you (horizontal)
+  lift: 0.3              # how much it pops them upward
 
 MajesticDestroyerFlame:
   cooldown: 10
@@ -218,9 +219,9 @@ Brick:
 
 Leap:
   cooldown: 10
-  horizontal-force: 3    # speed along where you look
-  lift: 0.5              # flat upward speed
-  pitch-lift: 0.6        # extra upward speed the more level you look (none looking straight up or down)
+  horizontal-force: 6      # speed along where you look
+  lift: 0.35             # flat upward speed
+  pitch-lift: 0.45       # extra upward speed the more level you look (none looking straight up or down)
 
 Adrenaline:
   cooldown: 30
@@ -332,3 +333,120 @@ SummonWarrior:
   max-active: 1               # how many of these you can have out at once
   hit-memory-ticks: 100       # it goes after whatever you hit (any mob or player) for this long after your last hit
   flame-interval-ticks: 200   # it casts Majestic Destroyer Flame (using that ability numbers) when its target is in range, then waits this long (200 = 10 seconds)
+
+# ---- Guy (shikigami item): a small floating AI helper (guy.bbmodel) that follows you and fights ----
+SummonGuy:
+  cooldown: 10
+  health: 20                  # its health points (2 = one heart)
+  damage: 1                   # damage of the bump (1 = half a heart)
+  knockback: 0.5              # sideways shove in a random direction
+  lift: 0.4                   # how far up the bump throws them
+  dash-speed: 1.5             # blocks per tick on the way to the target
+  dash-delay-ticks: 1         # how long after you hit something Guy sets off (1 tick = the soonest it can be)
+  hit-memory-ticks: 40        # if Guy cannot reach the target in this long, he gives up and returns to you anyway
+  hover-height: 1.6           # how many blocks above you he floats
+  hover-behind: 1.6           # how many blocks behind you he floats
+  learn-damage: 10            # total damage (health points, 10 = 5 hearts) one player must do to you before Guy scans them
+  learn-window-ticks: 200     # a hit counts as coming from the ability that player used within this long before it (200 = 10 seconds)
+  scan-ticks: 60              # how long the scan takes
+  scan-distance: 2.5          # how far from the player Guy hovers while scanning
+  lifetime-ticks: 1200        # despawns after this long (1200 = 60 seconds, 0 = never)
+  idle-ticks: 0               # despawns after this long without a hit (0 = never)
+  max-active: 1               # how many of these you can have out at once
+
+# ---- Domain item (amethyst shard) ----
+# Test domain: a dome of coal blocks closes around the caster, a cutscene plays, then the domain lasts a while.
+# chaos-cost is the chaos needed to cast it (100 for the real thing; 0 skips the requirement while testing).
+DummyDomain:
+  cooldown: 5
+  radius: 25
+  thickness: 2
+  form-ticks: 40
+  duration-ticks: 600
+  chaos-cost: 100
+  night-vision-amplifier: 0
+
+# ---- Domain: Neverending Night (amethyst shard) ----
+# A blue pillar of flame, a dome of darkness, night, an obsidian tower, creatures of darkness, and Titan's Wrath.
+# chaos-cost: chaos needed (100 for the real thing; 0 skips the requirement while testing).
+# mobs-target-caster: 1 makes the creatures attack the caster too (only for testing alone, with no enemies).
+# slow-amplifier: Slowness level for the enemies (1 = Slowness II).
+NeverendingNight:
+  cooldown: 5
+  radius: 25
+  thickness: 2
+  form-ticks: 40
+  duration-ticks: 1200       # 60 seconds
+  chaos-cost: 100
+  flame-height: 22           # the column of blue fire
+  tower-height: 16           # the obsidian tower (the eye hangs 3 blocks above it)
+  endermen-count: 9
+  phantom-count: 12
+  warden-count: 1
+  mobs-target-caster: 0
+  slow-amplifier: 1
+
+# Titan's Wrath: the caster's move inside Neverending Night. damage is health (4 = 2 hearts) every interval-ticks.
+TitansWrath:
+  cooldown: 35
+  damage: 4
+  interval-ticks: 10         # every half a second
+  duration-ticks: 100        # the beam lasts 5 seconds
+  charge-ticks: 30           # the eye forms for this long first
+  range: 80
+  width: 1.2
+
+# Flying Raijin (Hassan). MarkRaijin fires the marking arrow; UseRaijin teleports to the mark.
+MarkRaijin:
+  cooldown: 1
+  speed: 3.0             # blocks per tick the arrow flies
+  hitbox: 0.5
+  max-ticks: 100         # 100 ticks = 5 seconds of flight
+  gravity: 0.02          # how much the arrow drops every tick (0 = flies straight)
+
+UseRaijin:
+  cooldown: 5
+
+# Malware (Hassan). A very short hitscan infects; the infected take damage over time and infect whatever they hurt.
+Malware:
+  cooldown: 10
+  range: 2              # how far the hitscan reaches, in blocks
+  damage: 2              # health points each time (2 = one heart)
+  duration-ticks: 120    # how long the infection lasts (120 = 6 seconds)
+  interval-ticks: 40     # ticks between hits (40 = every 2 seconds, so 3 hits over 6 seconds)
+
+# Explosive Gravity Bomb (Hassan). A black hole above you pulls everything in as it shrinks, then explodes.
+ExplosiveGravityBomb:
+  cooldown: 10
+  height: 5              # how many blocks above your head the black hole forms
+  duration-ticks: 120    # how long it takes to shrink from start-radius to end-radius (120 = 6 seconds)
+  start-radius: 3        # its size when it appears, in blocks
+  end-radius: 0.5        # its size when it explodes
+  pull-radius: 30        # how far away it drags things in from
+  pull-force: 0.15       # how hard it drags, per tick
+  radius: 10             # the explosion hurts everything within this many blocks
+  damage: 6              # health points of the explosion (6 = 3 hearts)
+  blast-radius: 30       # the explosion throws everything within this many blocks away
+  knockback: 2.5         # how hard it throws things (full strength up close, a third at the edge)
+
+# Joga Bonito (Hassan). Kicks a soccer ball from your feet: damage, a little knockback, a short stun, a white flash, then it returns (no cooldown on a hit; cooldown only on a miss).
+JogaBonito:
+  cooldown: 10
+  speed: 1.6             # blocks per tick the ball flies
+  hitbox: 0.5
+  max-ticks: 60          # 60 ticks = 3 seconds of flight
+  gravity: 0.02          # how much the ball drops every tick (0 = flies straight)
+  damage: 1              # health points on impact (1 = half a heart)
+  knockback: 0.6         # how hard it shoves the victim back (horizontal)
+  lift: 0.25             # how much it pops them upward
+  stun-ticks: 10         # how long their movement is held still afterwards (10 = half a second)
+  return-speed: 1.2      # blocks per tick the ball rolls back to you after a hit
+
+# Shilajit (Hassan). Heals you and gives Resistance; coal blocks orbit you while it lasts.
+Shilajit:
+  cooldown: 10
+  heal: 6                # health points healed at once (6 = 3 hearts)
+  duration-ticks: 200    # how long the resistance and the orbiting blocks last (200 = 10 seconds)
+  resistance-amplifier: 1  # resistance level minus one (1 = Resistance II)
+  radius: 1.5            # how far from you the blocks orbit, in blocks
+  count: 4               # blocks in each of the two rings

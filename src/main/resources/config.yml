@@ -28,5 +28,5 @@ chaos:
   per-heart: 1
   kill-gain: 10
   death-loss: 15
-  # false = only damage to players counts, so hitting mobs cannot farm chaos
-  count-non-player-damage: false
+  # false = only damage to players counts, so hitting mobs cannot farm chaos (true for testing)
+  count-non-player-damage: true

@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.ability.AbilityRegistry;
+import com.hfturay.battleplugin.ability.AbilitySlot;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.cooldownservice.CooldownService;
 import com.hfturay.battleplugin.loggerservice.PlayerLogger;
@@ -55,7 +56,7 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
 
     private static final String LOAD_USAGE = "/load <skill> <player>   or   /load <fromPlayer> <toPlayer>";
     private static final String REMOVE_USAGE = "/remove <skill> <player>   or   /remove <player1> <player2>";
-    private static final String CLEAR_USAGE = "/clearabilities <player>";
+    private static final String CLEAR_USAGE = "/clearabilities <player> [attack|mobility|buff|elemental|shikigami|domain]   (no item = everything)";
 
     private final PlayerResolver players;
     private final AbilityCreator creator;
@@ -132,6 +133,12 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
             return;
         }
 
+        Optional<List<AbilityRegistry.Entry>> bundle = AbilityRegistry.findBundle(args[0]);
+        if (bundle.isPresent()) {
+            loadBundle(sender, bundle.get(), requirePlayer(sender, args[1]), args[0]);
+            return;
+        }
+
         Optional<AbilityRegistry.Entry> skill = AbilityRegistry.find(args[0]);
         if (skill.isPresent()) {
             loadSkill(sender, skill.get(), requirePlayer(sender, args[1]));
@@ -161,6 +168,27 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
         }
     }
 
+    /** Loads every part of a bundle (Flying Raijin) that the player does not already have. */
+    private void loadBundle(CommandSender sender, List<AbilityRegistry.Entry> parts, BattlePlayer target, String typed) {
+        List<String> added = new ArrayList<>();
+        for (AbilityRegistry.Entry part : parts) {
+            if (target.getLoadout().find(part.type()) != null) {
+                continue;
+            }
+            Ability ability = creator.create(part.type(), target);
+            target.getLoadout().add(part.slot(), ability);
+            added.add(ability.getDisplayName());
+        }
+        if (added.isEmpty()) {
+            error(sender, name(target) + " already has all of " + typed + ".");
+            return;
+        }
+        afterChange.accept(target);
+
+        ok(sender, "Loaded " + String.join(" and ", added) + " onto " + name(target) + ".");
+        tell(sender, target, "You were given " + String.join(" and ", added) + ".");
+    }
+
     private void loadSkill(CommandSender sender, AbilityRegistry.Entry skill, BattlePlayer target) {
         Ability existing = target.getLoadout().find(skill.type());
         if (existing != null) {
@@ -182,6 +210,25 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
     private void remove(CommandSender sender, String[] args) {
         if (args.length != 2) {
             usage(sender, REMOVE_USAGE);
+            return;
+        }
+
+        Optional<List<AbilityRegistry.Entry>> bundle = AbilityRegistry.findBundle(args[0]);
+        if (bundle.isPresent()) {
+            BattlePlayer target = requirePlayer(sender, args[1]);
+            List<String> names = new ArrayList<>();
+            for (AbilityRegistry.Entry part : bundle.get()) {
+                for (Ability removedPart : target.getLoadout().remove(part.type())) {
+                    names.add(removedPart.getDisplayName());
+                }
+            }
+            if (names.isEmpty()) {
+                error(sender, name(target) + " does not have " + args[0] + ".");
+                return;
+            }
+            afterChange.accept(target);
+            ok(sender, "Removed " + String.join(" and ", names) + " from " + name(target) + ".");
+            tell(sender, target, String.join(" and ", names) + " were removed from your abilities.");
             return;
         }
 
@@ -221,12 +268,35 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
     // ---- /clearabilities ----
 
     private void clear(CommandSender sender, String[] args) {
-        if (args.length != 1) {
+        if (args.length < 1 || args.length > 2) {
             usage(sender, CLEAR_USAGE);
             return;
         }
 
         BattlePlayer target = requirePlayer(sender, args[0]);
+
+        if (args.length == 2) {
+            AbilitySlot slot = null;
+            for (AbilitySlot candidate : AbilitySlot.values()) {
+                if (candidate.label().equalsIgnoreCase(args[1]) || (args[1].equalsIgnoreCase("buffs") && candidate == AbilitySlot.BUFF)) {
+                    slot = candidate;
+                }
+            }
+            if (slot == null) {
+                error(sender, "'" + args[1] + "' is not an item. Use attack, mobility, buff, elemental, shikigami or domain.");
+                return;
+            }
+
+            int removed = target.getLoadout().clear(slot);
+            afterChange.accept(target);
+
+            ok(sender, "Cleared " + removed + " " + slot.label() + " abilities from " + name(target) + ".");
+            if (removed > 0) {
+                tell(sender, target, "Your " + slot.label() + " abilities were cleared.");
+            }
+            return;
+        }
+
         int removed = target.getLoadout().clear();
         afterChange.accept(target);
 
@@ -267,11 +337,15 @@ public final class AbilityCommands implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             if (takesSkill) {
-                options.addAll(AbilityRegistry.keys());
+                options.addAll(AbilityRegistry.loadableKeys());
             }
             offerPlayers = true;
         } else if (args.length == 2 && takesSkill) {
             offerPlayers = true;
+        } else if (args.length == 2 && name.equals("clearabilities")) {
+            for (AbilitySlot slot : AbilitySlot.values()) {
+                options.add(slot.label());
+            }
         }
 
         if (offerPlayers) {

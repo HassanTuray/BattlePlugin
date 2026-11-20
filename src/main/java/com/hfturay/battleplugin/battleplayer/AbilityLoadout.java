@@ -67,6 +67,17 @@ public final class AbilityLoadout {
         return list.get(index);
     }
 
+    /** Moves the selection back and returns the newly selected ability, or null if the item has none. */
+    public Ability previous(AbilitySlot slot) {
+        List<Ability> list = abilities.get(slot);
+        if (list.isEmpty()) {
+            return null;
+        }
+        int index = (selected.get(slot) - 1 + list.size()) % list.size();
+        selected.put(slot, index);
+        return list.get(index);
+    }
+
     /** True if this exact ability object is loaded (not just one of the same type). */
     public boolean contains(Ability ability) {
         for (AbilitySlot slot : AbilitySlot.values()) {
@@ -146,6 +157,16 @@ public final class AbilityLoadout {
             list.clear();
             selected.put(slot, 0);
         }
+        return count;
+    }
+
+    /** Removes every ability from one item only. Returns how many were removed. */
+    public int clear(AbilitySlot slot) {
+        ArrayList<Ability> list = abilities.get(slot);
+        int count = list.size();
+        list.forEach(Ability::cancel);
+        list.clear();
+        selected.put(slot, 0);
         return count;
     }
 

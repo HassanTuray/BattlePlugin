@@ -135,6 +135,7 @@ public class PlayerLogger implements Listener {
         boolean hasMobilityItem = false;
         boolean hasElementalItem = false;
         boolean hasShikigamiItem = false;
+        boolean hasDomainItem = false;
 
         for (ItemStack stack : inv.getContents()) {
             if (AbilityItemFactory.isAttackItem(stack)) {
@@ -147,6 +148,8 @@ public class PlayerLogger implements Listener {
                 hasElementalItem = true;
             } else if (AbilityItemFactory.isShikigamiItem(stack)) {
                 hasShikigamiItem = true;
+            } else if (AbilityItemFactory.isDomainItem(stack)) {
+                hasDomainItem = true;
             }
         }
 
@@ -164,6 +167,9 @@ public class PlayerLogger implements Listener {
         }
         if (!hasShikigamiItem) {
             inv.addItem(battlePlayer.getShikigamiItem().getItem());
+        }
+        if (!hasDomainItem) {
+            inv.addItem(battlePlayer.getDomainItem().getItem());
         }
     }
 

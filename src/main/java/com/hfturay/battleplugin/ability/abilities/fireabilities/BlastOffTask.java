@@ -1,6 +1,10 @@
 package com.hfturay.battleplugin.ability.abilities.fireabilities;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -22,16 +26,13 @@ import com.hfturay.battleplugin.targetingservice.AOE;
 final class BlastOffTask extends ScheduledAbilityTask {
 
     /** Every number, already read from abilities.yml. `damage` is in health points (2 = one heart). */
-    record Settings(int durationTicks, double speed, double launchLift, double damage, double radius, int intervalTicks) { }
+    record Settings(int durationTicks, double speed, double launchLift, double damage, double radius, double knockback, double lift) { }
 
     /** Ticks at the start that always push upward so the caster leaves the ground. */
     private static final int LIFT_TICKS = 4;
 
     /** Ticks before touching the ground can end the flight. */
     private static final int LANDING_GRACE_TICKS = 10;
-
-    /** How far from the caster (their body centre) a target can be found before the exact reach check. */
-    private static final double SEARCH_RADIUS = 5.0;
 
     private final BattlePlayer owner;
     private final Settings settings;
@@ -58,7 +59,8 @@ final class BlastOffTask extends ScheduledAbilityTask {
             return;
         }
         if (age >= LANDING_GRACE_TICKS && FallImmunityService.isGrounded(player)) {
-            finishNow();                  // they came down: the flight is over
+            explode(player);              // they came down: a small explosion, and the flight is over
+            finishNow();
             return;
         }
 
@@ -69,20 +71,27 @@ final class BlastOffTask extends ScheduledAbilityTask {
             push.setY(Math.max(push.getY(), settings.launchLift()));
         }
         player.setVelocity(push);
-
-        if (age % settings.intervalTicks() == 0) {
-            burnNearby(player);
-        }
         age++;
     }
 
-    /** Burns everything whose body is within `radius` of the caster's body. */
-    private void burnNearby(Player player) {
+    /** The landing blast: hurts everything within `radius` of the caster and shoves it away and a little up. */
+    private void explode(Player player) {
         Location body = player.getLocation().add(0, 0.5, 0);
-        for (Entity target : AOE.getTargets(owner, body, SEARCH_RADIUS)) {
-            if (target instanceof LivingEntity && target.getBoundingBox().expand(settings.radius()).contains(body.toVector())) {
-                BattlePlugin.getInstance().getDamageService().damage(owner, target, settings.damage());
+        World world = body.getWorld();
+        world.spawnParticle(Particle.EXPLOSION, body, 1);
+        world.spawnParticle(Particle.FLAME, body, 40, 1.5, 0.3, 1.5, 0.1);
+        world.playSound(body, Sound.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 1.0f, 1.2f);
+
+        for (Entity target : AOE.getTargets(owner, body, settings.radius())) {
+            if (!(target instanceof LivingEntity living)) {
+                continue;
             }
+            BattlePlugin.getInstance().getDamageService().damage(owner, living, settings.damage());
+            Vector away = living.getLocation().toVector().subtract(body.toVector()).setY(0);
+            if (away.lengthSquared() < 1.0E-6) {
+                away = new Vector(1, 0, 0);
+            }
+            living.setVelocity(away.normalize().multiply(settings.knockback()).setY(settings.lift()));
         }
     }
 
