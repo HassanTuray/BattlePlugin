@@ -71,8 +71,9 @@ public final class NeverendingNightEffects implements Behavior {
     public record Settings(int flameHeight, int towerHeight, int endermen, int phantoms, int wardens,
                            boolean mobsTargetCaster, int slowAmplifier) { }
 
-    /** Local time that is night. */
+    /** World times for night (while the domain is up) and day (once it ends). */
     private static final long NIGHT = 18000;
+    private static final long DAY = 1000;
     private static final int RETARGET_INTERVAL = 20;
     private static final int COLUMN_RISE_TICKS = 8;        // the fire shoots up this fast
     private static final int TOWER_BUILD_TICKS = 60;
@@ -222,7 +223,7 @@ public final class NeverendingNightEffects implements Behavior {
         return Scene.builder("neverending-night", new CameraPath(frames))
             .at(0, ctx -> Scenes.sound(ctx.viewers(), Sound.ENTITY_WARDEN_HEARTBEAT, 0.7f))
             .at(10, ctx -> {
-                Scenes.line(ctx.viewers(), "A WORLD BASKED IN PUREST LIGHT.", NamedTextColor.GOLD);
+                Scenes.line(ctx.viewers(), "A WORLD BASKED IN PUREST LIGHT.", NamedTextColor.AQUA);
                 Scenes.sound(ctx.viewers(), Sound.BLOCK_BEACON_AMBIENT, 1.0f);
             })
             .at(80, ctx -> {
@@ -345,15 +346,9 @@ public final class NeverendingNightEffects implements Behavior {
         this.eyeCenter = new Location(world, cx + 0.5, cy + settings.towerHeight() + EYE_LIFT, cz + 0.5);
         service.register(casterId, this);
 
+        // the whole world turns to night the moment it is cast, and back to day when it ends (onEnd)
+        world.setTime(NIGHT);
         world.playSound(d.center(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.MASTER, 3.0f, 0.5f);
-    }
-
-    @Override
-    public void onClosed(Domain d) {
-        // "Sets the local time to night": only for the people inside, and only until the domain ends.
-        for (Player player : d.caughtPlayers()) {
-            player.setPlayerTime(NIGHT, false);
-        }
     }
 
     @Override
@@ -396,9 +391,7 @@ public final class NeverendingNightEffects implements Behavior {
             enemy.removePotionEffect(PotionEffectType.DARKNESS);
             enemy.removePotionEffect(PotionEffectType.BLINDNESS);
         }
-        for (Player player : d.caughtPlayers()) {
-            player.resetPlayerTime();
-        }
+        world.setTime(DAY);
         for (UUID id : mobs) {
             Entity entity = Bukkit.getEntity(id);
             if (entity != null) {

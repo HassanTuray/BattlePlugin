@@ -10,7 +10,7 @@ import com.hfturay.battleplugin.domainservice.neverendingnight.NeverendingNightE
 
 /**
  * Domain: Neverending Night. A blue pillar of flame bursts from the ground as a dome of darkness closes around the
- * caster and their enemies; the local time becomes night; the pillar hardens into an obsidian tower; creatures of
+ * caster and their enemies; the world turns to night (and back to day when it ends); the pillar hardens into an obsidian tower; creatures of
  * darkness (endermen, phantoms, a warden) hunt the caster's enemies, who are slowed and blinded; and the caster
  * gains Titan's Wrath. Every number is in abilities.yml (NeverendingNight section).
  */
