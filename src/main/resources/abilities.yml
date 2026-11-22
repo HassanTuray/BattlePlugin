@@ -385,7 +385,9 @@ EndIt:
   height: 10                  # how tall Pink! grows (blocks); every other size grows by the same amount
   grow-ticks: 20              # how long the growing takes (20 = 1 second); it stands still meanwhile
   speed: 0.6                  # how fast it runs at its target (blocks per tick, 0.6 = 12 blocks a second)
-  max-ticks: 200              # if it has not reached them after this long, it blows up where it is (200 = 10 seconds)
+  target-range: 24            # it runs at the nearest enemy within this many blocks (players, others' shikigami, hostile mobs)
+  follow-distance: 4          # with no enemy in range it follows you, staying within this many blocks
+  max-ticks: 200              # if it has run at enemies this long without reaching one, it blows up where it is (200 = 10 seconds)
   radius: 8                   # blast size (blocks)
   damage: 30                  # health points dealt to everyone in the blast (30 = 15 hearts); never you or your shikigami
   horizontal-force: 2.5       # push away from the blast
