@@ -53,6 +53,7 @@ import com.hfturay.battleplugin.ability.abilities.muhammadabilities.MetldownOfWa
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBomb;
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.RevolutionarySpirit;
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.Shortcut;
+import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.EndIt;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonGuy;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonPink;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonWarrior;
@@ -153,6 +154,7 @@ public final class AbilityRegistry {
         register(AbilitySlot.SHIKIGAMI, SummonWarrior.class, "Warrior");
         register(AbilitySlot.SHIKIGAMI, SummonGuy.class, "Guy");
         register(AbilitySlot.SHIKIGAMI, SummonPink.class, "Pink");
+        register(AbilitySlot.SHIKIGAMI, EndIt.class);          // lent to Pink!'s owner while Pink! is out
 
         // domain item (amethyst shard)
         register(AbilitySlot.DOMAIN, NeverendingNight.class);

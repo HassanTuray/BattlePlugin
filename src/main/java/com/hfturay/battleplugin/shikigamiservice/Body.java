@@ -17,6 +17,13 @@ public interface Body {
     /** Take the visuals away (the mob itself is removed by the service). */
     void remove();
 
+    /**
+     * Draws the body this many times its normal size (1 = normal). The mob's own size (its hitbox) is separate:
+     * set its scale attribute too. A vanilla mob is drawn from that attribute, so it does nothing here.
+     */
+    default void scale(double factor) {
+    }
+
     /** True if the body draws its own name tag, so the mob's vanilla one should be hidden. */
     default boolean providesNametag() {
         return false;

@@ -15,6 +15,7 @@ import kr.toxicity.model.api.animation.AnimationModifier;
 import kr.toxicity.model.api.bukkit.platform.BukkitAdapter;
 import kr.toxicity.model.api.data.renderer.ModelRenderer;
 import kr.toxicity.model.api.tracker.EntityTracker;
+import kr.toxicity.model.api.tracker.ModelScaler;
 import kr.toxicity.model.api.tracker.TrackerModifier;
 
 /**
@@ -82,6 +83,13 @@ final class BetterModelBody implements Body {
         }
         int index = rotation.merge(animation, 1, Integer::sum) - 1;
         tracker.animate(options.get(index % options.size()), AnimationModifier.DEFAULT_WITH_PLAY_ONCE);
+    }
+
+    @Override
+    public void scale(double factor) {
+        if (!tracker.isClosed()) {
+            tracker.scaler(ModelScaler.value((float) factor));
+        }
     }
 
     @Override

@@ -379,6 +379,18 @@ SummonPink:
   bomb-damage: 4              # health points dealt by the blast (4 = 2 hearts)
   bomb-knockback: 1.0         # push away from the blast
 
+# End it (lent while Pink! is out): Pink! grows huge, runs at its target and blows up. The summon's cooldown starts then.
+EndIt:
+  cooldown: 0                 # it is used once and taken away, so this never matters
+  height: 10                  # how tall Pink! grows (blocks); every other size grows by the same amount
+  grow-ticks: 20              # how long the growing takes (20 = 1 second); it stands still meanwhile
+  speed: 0.6                  # how fast it runs at its target (blocks per tick, 0.6 = 12 blocks a second)
+  max-ticks: 200              # if it has not reached them after this long, it blows up where it is (200 = 10 seconds)
+  radius: 8                   # blast size (blocks)
+  damage: 30                  # health points dealt to everyone in the blast (30 = 15 hearts); never you or your shikigami
+  horizontal-force: 2.5       # push away from the blast
+  lift: 1.0                   # and upwards
+
 # ---- Domain item (amethyst shard) ----
 # Test domain: a dome of coal blocks closes around the caster, a cutscene plays, then the domain lasts a while.
 # chaos-cost is the chaos needed to cast it (100 for the real thing; 0 skips the requirement while testing).

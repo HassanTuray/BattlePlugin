@@ -40,6 +40,7 @@ public class BrainShikigami extends Shikigami {
     private int lastAttackAge;
     private LivingEntity target;
     private final int[] triggerReadyAt;
+    private boolean takenOver = false;
 
     public BrainShikigami(Mob mob, BattlePlayer owner, ShikigamiSpec spec) {
         super(mob, owner);
@@ -81,6 +82,18 @@ public class BrainShikigami extends Shikigami {
     /** Who it is currently going after, or null. */
     public LivingEntity target() {
         return target;
+    }
+
+    /**
+     * Something else drives the mob from now on (Pink!'s End it). The brain stops choosing targets, moving, hitting
+     * and running its triggers; it only still checks its despawn rules. Cannot be undone.
+     */
+    public void takeOver() {
+        takenOver = true;
+        target = null;
+        pendingHitAt = -1;
+        pendingTarget = null;
+        mob().getPathfinder().stopPathfinding();
     }
 
     @Override
@@ -127,6 +140,9 @@ public class BrainShikigami extends Shikigami {
                 setEndReason(reason);
                 return true;
             }
+        }
+        if (takenOver) {
+            return false;
         }
 
         if (age % RETARGET_TICKS == 0 || !targetStillValid()) {

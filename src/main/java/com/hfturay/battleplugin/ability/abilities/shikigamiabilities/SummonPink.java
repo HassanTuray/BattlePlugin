@@ -12,6 +12,7 @@ import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
+import com.hfturay.battleplugin.ability.AbilitySlot;
 import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBombCallBack;
@@ -19,11 +20,13 @@ import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 import com.hfturay.battleplugin.shikigamiservice.DespawnRules;
-import com.hfturay.battleplugin.shikigamiservice.EndReactions;
 import com.hfturay.battleplugin.shikigamiservice.FollowAndChase;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiSpec;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiTrigger;
 import com.hfturay.battleplugin.shikigamiservice.Targeting;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
  * Summons Pink!: a shikigami shaped like a normal player, wearing the pink skin (models/skins/pink.png). It follows its
@@ -31,6 +34,8 @@ import com.hfturay.battleplugin.shikigamiservice.Targeting;
  * whichever happened more recently. Every bomb-interval-ticks it throws a cartoon bomb (PinkVisuals.BOMB, with the
  * pipe bomb's blast) at that target in a fast arc, and it punches the
  * target when close. With no target it throws nothing.
+ * While it is out, its owner also has End it (see EndIt) on the shikigami item. The summon's cooldown starts when Pink!
+ * is gone (blown up, killed, timed out), not when it is summoned.
  * Drawn by the pink model (BetterModel); the mob under it is only the hitbox.
  * Every number comes from abilities.yml (SummonPink section), read when it is summoned.
  */
@@ -68,7 +73,29 @@ public class SummonPink extends Ability {
         Zombie zombie = where.getWorld().spawn(where, Zombie.class);
         BrainShikigami pink = new BrainShikigami(zombie, owner, spec());
         BattlePlugin.getInstance().getShikigamiService().add(pink);
-        return Activation.USED;
+        lendEndIt(pink);
+        // The cooldown starts when Pink! is gone (its end reaction), not now.
+        return Activation.USED_NO_COOLDOWN;
+    }
+
+    /** Puts End it on the shikigami item for as long as this Pink! is out, and selects it so the next click uses it. */
+    private void lendEndIt(BrainShikigami pink) {
+        EndIt endIt = new EndIt(owner);
+        endIt.bind(pink);
+        if (!owner.getLoadout().add(AbilitySlot.SHIKIGAMI, endIt)) {
+            return;
+        }
+        for (int i = 0; i < owner.getLoadout().size(AbilitySlot.SHIKIGAMI)
+            && owner.getLoadout().current(AbilitySlot.SHIKIGAMI) != endIt; i++) {
+            owner.getLoadout().next(AbilitySlot.SHIKIGAMI);
+        }
+        owner.getPlayer().sendActionBar(Component.text("End it unlocked", NamedTextColor.LIGHT_PURPLE));
+    }
+
+    /** Pink! is gone, however it went: End it goes away and the summon's cooldown starts. */
+    private void onPinkEnded() {
+        owner.getLoadout().remove(EndIt.class);
+        startCooldown();
     }
 
     /**
@@ -127,7 +154,7 @@ public class SummonPink extends Ability {
                 DespawnRules.inactivity(settingInt("idle-ticks")),
                 DespawnRules.ownerDied(),
                 DespawnRules.ownerOffline()),
-            EndReactions.none(),
+            (self, reason) -> onPinkEnded(),
             List.of(
                 // Throws a bomb at its target, then waits bomb-interval-ticks. No target, no bomb.
                 new ShikigamiTrigger(
