@@ -14,8 +14,9 @@ import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.RequiresSettings;
-import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBomb;
+import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBombCallBack;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 import com.hfturay.battleplugin.shikigamiservice.DespawnRules;
 import com.hfturay.battleplugin.shikigamiservice.EndReactions;
@@ -27,7 +28,8 @@ import com.hfturay.battleplugin.shikigamiservice.Targeting;
 /**
  * Summons Pink!: a shikigami shaped like a normal player, wearing the pink skin (models/skins/pink.png). It follows its
  * owner and only joins the owner's own fight: its target is whoever the owner last hit or whoever last hurt the owner,
- * whichever happened more recently. Every bomb-interval-ticks it throws a pipe bomb at that target, and it punches the
+ * whichever happened more recently. Every bomb-interval-ticks it throws a cartoon bomb (PinkVisuals.BOMB, with the
+ * pipe bomb's blast) at that target in a fast arc, and it punches the
  * target when close. With no target it throws nothing.
  * Drawn by the pink model (BetterModel); the mob under it is only the hitbox.
  * Every number comes from abilities.yml (SummonPink section), read when it is summoned.
@@ -70,8 +72,9 @@ public class SummonPink extends Ability {
     }
 
     /**
-     * Lobs a pipe bomb from Pink!'s hand at the middle of its target. The bomb falls bomb-gravity every tick, so it is
-     * thrown on the low arc that lands on the target; out of reach, it goes at 45 degrees (its farthest throw).
+     * Throws the cartoon bomb from Pink!'s hand at the middle of its target. It always covers the ground at bomb-speed
+     * blocks a tick, so it is quick at any distance, and it is thrown up just hard enough that, falling bomb-gravity
+     * every tick, it comes down on the target. More gravity means a higher arc in the same time.
      */
     private void throwBomb(BrainShikigami self) {
         Mob mob = self.mob();
@@ -87,24 +90,24 @@ public class SummonPink extends Ability {
             return;                                 // straight above or below: no sensible throw
         }
 
-        double speed = setting("bomb-speed");
+        double across = setting("bomb-speed");
         double gravity = setting("bomb-gravity");
-        double angle;
-        if (gravity <= 0) {
-            angle = Math.atan2(toTarget.getY(), flat);
-        } else {
-            double s2 = speed * speed;
-            double root = s2 * s2 - gravity * (gravity * flat * flat + 2 * toTarget.getY() * s2);
-            angle = root < 0 ? Math.PI / 4 : Math.atan((s2 - Math.sqrt(root)) / (gravity * flat));
-        }
-        Vector direction = new Vector(toTarget.getX() / flat * Math.cos(angle), Math.sin(angle), toTarget.getZ() / flat * Math.cos(angle));
+        // Each tick the bomb first drops by gravity, then moves. After t ticks it has risen t * up - gravity * t(t+1)/2,
+        // so to be at the target's height after flat / across ticks it needs this much upward speed.
+        double ticks = Math.max(1, flat / across);
+        double up = (toTarget.getY() + gravity * ticks * (ticks + 1) / 2) / ticks;
+        Vector velocity = new Vector(toTarget.getX() / flat * across, up, toTarget.getZ() / flat * across);
 
         mob.lookAt(target);
         self.body().play("throw");
 
-        BattlePlugin.getInstance().getProjectileService().add(PipeBomb.thrownFrom(hand, direction, owner, speed,
-            settingInt("bomb-max-ticks"), setting("bomb-hitbox"), gravity,
-            setting("bomb-radius"), setting("bomb-damage"), setting("bomb-knockback")));
+        VirtualProjectile bomb = new VirtualProjectile(hand, velocity, velocity.length(), settingInt("bomb-max-ticks"),
+            owner, setting("bomb-hitbox"),
+            new PipeBombCallBack(setting("bomb-radius"), setting("bomb-damage"), setting("bomb-knockback")),
+            PinkParticles.BOMB_FUSE);
+        bomb.setVisual(PinkVisuals.BOMB);
+        bomb.setMotionFunction((v, t) -> v.setY(v.getY() - gravity));
+        BattlePlugin.getInstance().getProjectileService().add(bomb);
     }
 
     private ShikigamiSpec spec() {
