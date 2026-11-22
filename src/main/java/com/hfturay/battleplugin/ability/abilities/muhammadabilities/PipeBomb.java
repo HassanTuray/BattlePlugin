@@ -1,5 +1,8 @@
 package com.hfturay.battleplugin.ability.abilities.muhammadabilities;
 
+import org.bukkit.Location;
+import org.bukkit.util.Vector;
+
 import com.hfturay.battleplugin.ability.ProjectileAbility;
 import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
@@ -39,4 +42,16 @@ public class PipeBomb extends ProjectileAbility {
         return Activation.USED;
     }
 
+    /**
+     * A pipe bomb (same look and blast) thrown from anywhere, for others to launch, like Pink! does. The caller gives
+     * every number; it falls by gravity every tick. Add it to the ProjectileService to throw it.
+     */
+    public static VirtualProjectile thrownFrom(Location start, Vector direction, BattlePlayer owner, double speed, int maxTicks,
+                                               double hitbox, double gravity, double radius, double damage, double knockback) {
+        VirtualProjectile bomb = new VirtualProjectile(start, direction, speed, maxTicks, owner, hitbox,
+            new PipeBombCallBack(radius, damage, knockback), MuhammadParticles.PIPE_BOMB);
+        bomb.setVisual(MuhammadVisuals.PIPE_BOMB);
+        bomb.setMotionFunction((v, t) -> v.setY(v.getY() - gravity));
+        return bomb;
+    }
 }

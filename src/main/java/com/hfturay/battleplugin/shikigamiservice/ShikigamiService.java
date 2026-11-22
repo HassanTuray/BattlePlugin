@@ -15,6 +15,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -121,12 +122,21 @@ public final class ShikigamiService implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCombat(EntityDamageByEntityEvent event) {
         int now = Bukkit.getCurrentTick();
-        if (event.getDamager() instanceof Player attacker) {
+        Entity damager = shooterOf(event.getDamager());
+        if (damager instanceof Player attacker) {
             lastHit.put(attacker.getUniqueId(), new Mark(event.getEntity().getUniqueId(), now));
         }
         if (event.getEntity() instanceof Player victim) {
-            lastAttackedBy.put(victim.getUniqueId(), new Mark(event.getDamager().getUniqueId(), now));
+            lastAttackedBy.put(victim.getUniqueId(), new Mark(damager.getUniqueId(), now));
         }
+    }
+
+    /** An arrow or other projectile counts as whoever shot it. */
+    private static Entity shooterOf(Entity damager) {
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Entity shooter) {
+            return shooter;
+        }
+        return damager;
     }
 
     private static LivingEntity resolve(Mark mark, int maxAgeTicks) {
@@ -144,6 +154,18 @@ public final class ShikigamiService implements Listener {
     /** Whoever hurt this player most recently (within maxAgeTicks), or null. */
     public LivingEntity lastAttackerOf(UUID player, int maxAgeTicks) {
         return resolve(lastAttackedBy.get(player), maxAgeTicks);
+    }
+
+    /**
+     * This player's latest fight (within maxAgeTicks): whoever they hit or whoever hurt them, whichever happened last.
+     * If the newer one is gone, the older one is used. Null if neither is around.
+     */
+    public LivingEntity lastFoeOf(UUID player, int maxAgeTicks) {
+        Mark hit = lastHit.get(player);
+        Mark hurt = lastAttackedBy.get(player);
+        boolean hitIsNewer = hurt == null || (hit != null && hit.tick() >= hurt.tick());
+        LivingEntity newer = resolve(hitIsNewer ? hit : hurt, maxAgeTicks);
+        return newer != null ? newer : resolve(hitIsNewer ? hurt : hit, maxAgeTicks);
     }
 
     public void add(Shikigami shikigami) {

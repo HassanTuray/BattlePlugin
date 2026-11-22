@@ -100,6 +100,15 @@ public final class Targeting {
     }
 
     /**
+     * The owner's latest fight (within maxAgeTicks): whoever they last hit or whoever last hurt them, whichever
+     * happened more recently. Null when the owner is not fighting anyone.
+     */
+    public static TargetingStrategy ownersFight(int maxAgeTicks) {
+        return self -> checked(self, BattlePlugin.getInstance().getShikigamiService()
+            .lastFoeOf(self.getOwner().getPlayer().getUniqueId(), maxAgeTicks));
+    }
+
+    /**
      * Only keep a remembered target if it can be hit and is within twice the target range. Unlike searching,
      * this accepts any mob (a cow the owner hit counts), because the owner chose it.
      */

@@ -370,6 +370,14 @@ SummonPink:
   idle-ticks: 0               # despawns after this long without a target or a hit (0 = never)
   max-active: 1               # how many of these you can have out at once
   hit-memory-ticks: 100       # it goes after whatever you hit (any mob or player) for this long after your last hit
+  bomb-interval-ticks: 100    # it throws a bomb at its target, then waits this long (100 = 5 seconds)
+  bomb-speed: 1.0             # how fast the bomb is thrown (blocks per tick)
+  bomb-gravity: 0.03          # how much the bomb drops every tick (it is lobbed to land on the target)
+  bomb-hitbox: 0.7            # how close it must pass to someone to go off
+  bomb-max-ticks: 100         # how long it flies before it goes off anyway (100 = 5 seconds)
+  bomb-radius: 4              # blast size
+  bomb-damage: 4              # health points dealt by the blast (4 = 2 hearts)
+  bomb-knockback: 1.0         # push away from the blast
 
 # ---- Domain item (amethyst shard) ----
 # Test domain: a dome of coal blocks closes around the caster, a cutscene plays, then the domain lasts a while.

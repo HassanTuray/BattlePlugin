@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Location;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.util.Vector;
@@ -12,22 +14,27 @@ import com.hfturay.battleplugin.BattlePlugin;
 import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.RequiresSettings;
+import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBomb;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 import com.hfturay.battleplugin.shikigamiservice.DespawnRules;
 import com.hfturay.battleplugin.shikigamiservice.EndReactions;
 import com.hfturay.battleplugin.shikigamiservice.FollowAndChase;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiSpec;
+import com.hfturay.battleplugin.shikigamiservice.ShikigamiTrigger;
 import com.hfturay.battleplugin.shikigamiservice.Targeting;
 
 /**
- * Summons Pink!: a shikigami shaped like a normal player, wearing the pink skin (models/skins/pink.png). For now it
- * fights like the Warrior without the flame: it follows its owner and punches whatever they hit, or the nearest enemy.
+ * Summons Pink!: a shikigami shaped like a normal player, wearing the pink skin (models/skins/pink.png). It follows its
+ * owner and only joins the owner's own fight: its target is whoever the owner last hit or whoever last hurt the owner,
+ * whichever happened more recently. Every bomb-interval-ticks it throws a pipe bomb at that target, and it punches the
+ * target when close. With no target it throws nothing.
  * Drawn by the pink model (BetterModel); the mob under it is only the hitbox.
  * Every number comes from abilities.yml (SummonPink section), read when it is summoned.
  */
 @RequiresSettings({ "cooldown", "health", "damage", "attack-range", "attack-interval-ticks", "attack-hit-delay-ticks", "target-range",
-    "follow-distance", "leash-distance", "speed", "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks" })
+    "follow-distance", "leash-distance", "speed", "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks",
+    "bomb-interval-ticks", "bomb-speed", "bomb-gravity", "bomb-hitbox", "bomb-max-ticks", "bomb-radius", "bomb-damage", "bomb-knockback" })
 public class SummonPink extends Ability {
     /** The BetterModel model: plugins/BetterModel/models/pink.bbmodel (made by models/tools/make_pink.js, copied by deploy). */
     private static final String MODEL = "pink";
@@ -62,6 +69,44 @@ public class SummonPink extends Ability {
         return Activation.USED;
     }
 
+    /**
+     * Lobs a pipe bomb from Pink!'s hand at the middle of its target. The bomb falls bomb-gravity every tick, so it is
+     * thrown on the low arc that lands on the target; out of reach, it goes at 45 degrees (its farthest throw).
+     */
+    private void throwBomb(BrainShikigami self) {
+        Mob mob = self.mob();
+        LivingEntity target = self.target();
+        if (target == null) {
+            return;
+        }
+
+        Location hand = mob.getLocation().add(0, 1.5, 0);
+        Vector toTarget = target.getBoundingBox().getCenter().subtract(hand.toVector());
+        double flat = Math.hypot(toTarget.getX(), toTarget.getZ());
+        if (flat < 1.0E-3) {
+            return;                                 // straight above or below: no sensible throw
+        }
+
+        double speed = setting("bomb-speed");
+        double gravity = setting("bomb-gravity");
+        double angle;
+        if (gravity <= 0) {
+            angle = Math.atan2(toTarget.getY(), flat);
+        } else {
+            double s2 = speed * speed;
+            double root = s2 * s2 - gravity * (gravity * flat * flat + 2 * toTarget.getY() * s2);
+            angle = root < 0 ? Math.PI / 4 : Math.atan((s2 - Math.sqrt(root)) / (gravity * flat));
+        }
+        Vector direction = new Vector(toTarget.getX() / flat * Math.cos(angle), Math.sin(angle), toTarget.getZ() / flat * Math.cos(angle));
+
+        mob.lookAt(target);
+        self.body().play("throw");
+
+        BattlePlugin.getInstance().getProjectileService().add(PipeBomb.thrownFrom(hand, direction, owner, speed,
+            settingInt("bomb-max-ticks"), setting("bomb-hitbox"), gravity,
+            setting("bomb-radius"), setting("bomb-damage"), setting("bomb-knockback")));
+    }
+
     private ShikigamiSpec spec() {
         return new ShikigamiSpec(
             owner.getPlayer().getName() + "'s Pink!",
@@ -70,8 +115,9 @@ public class SummonPink extends Ability {
             setting("attack-range"),
             Math.max(1, settingInt("attack-interval-ticks")),
             setting("target-range"),
-            // Whatever the owner hit most recently (any mob or player), otherwise the nearest enemy.
-            Targeting.ownersLastTarget(settingInt("hit-memory-ticks")).orElse(Targeting.nearest()),
+            // Only the owner's own fight: whoever they hit or whoever hurt them, whichever was more recent.
+            // Nobody else: when the owner is not fighting, Pink! has no target and throws nothing.
+            Targeting.ownersFight(settingInt("hit-memory-ticks")),
             new FollowAndChase(setting("follow-distance"), setting("leash-distance"), setting("speed")),
             List.of(
                 DespawnRules.timeout(settingInt("lifetime-ticks")),
@@ -79,7 +125,12 @@ public class SummonPink extends Ability {
                 DespawnRules.ownerDied(),
                 DespawnRules.ownerOffline()),
             EndReactions.none(),
-            List.of(),
+            List.of(
+                // Throws a bomb at its target, then waits bomb-interval-ticks. No target, no bomb.
+                new ShikigamiTrigger(
+                    ShikigamiTrigger.Conditions.hasTarget(),
+                    Math.max(1, settingInt("bomb-interval-ticks")),
+                    this::throwBomb)),
             mob -> {
                 if (!(mob instanceof Zombie zombie)) {
                     return;
@@ -91,7 +142,9 @@ public class SummonPink extends Ability {
             // Drawn as the pink model (BetterModel). Without that plugin it stays a plain zombie.
             // The model's animations: idle, walk and death play on their own; attack is the one we trigger.
             MODEL,
-            Map.of("attack", List.of("attack")),
+            Map.of(
+                "attack", List.of("attack"),
+                "throw", List.of("attack")),
             settingInt("attack-hit-delay-ticks"));
     }
 }
