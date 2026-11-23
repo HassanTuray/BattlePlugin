@@ -363,6 +363,7 @@ SummonPink:
   attack-interval-ticks: 15   # time between punches (20 = 1 second)
   attack-hit-delay-ticks: 6   # the punch lands this long after its attack animation starts (the arm comes down at 0.3 s = 6 ticks)
   target-range: 12            # how far it looks for enemies
+  guard-range: 6              # it never goes farther than this from you, even to reach its target (it throws bombs from there)
   follow-distance: 3          # stays within this many blocks of you when it has no target
   leash-distance: 32          # farther than this from you and it is teleported to you
   speed: 1.3                  # movement speed multiplier

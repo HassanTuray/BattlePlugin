@@ -20,7 +20,7 @@ import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 import com.hfturay.battleplugin.projectileservice.VirtualProjectile;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 import com.hfturay.battleplugin.shikigamiservice.DespawnRules;
-import com.hfturay.battleplugin.shikigamiservice.FollowAndChase;
+import com.hfturay.battleplugin.shikigamiservice.GuardOwner;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiSpec;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiTrigger;
 import com.hfturay.battleplugin.shikigamiservice.Targeting;
@@ -33,14 +33,15 @@ import net.kyori.adventure.text.format.NamedTextColor;
  * owner and only joins the owner's own fight: its target is whoever the owner last hit or whoever last hurt the owner,
  * whichever happened more recently. Every bomb-interval-ticks it throws a cartoon bomb (PinkVisuals.BOMB, with the
  * pipe bomb's blast) at that target in a fast arc, and it punches the
- * target when close. With no target it throws nothing.
+ * target when close. With no target it throws nothing. It never strays more than guard-range from its owner, even
+ * when its target is farther away (see GuardOwner).
  * While it is out, its owner also has End it (see EndIt) on the shikigami item. The summon's cooldown starts when Pink!
  * is gone (blown up, killed, timed out), not when it is summoned.
  * Drawn by the pink model (BetterModel); the mob under it is only the hitbox.
  * Every number comes from abilities.yml (SummonPink section), read when it is summoned.
  */
 @RequiresSettings({ "cooldown", "health", "damage", "attack-range", "attack-interval-ticks", "attack-hit-delay-ticks", "target-range",
-    "follow-distance", "leash-distance", "speed", "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks",
+    "guard-range", "follow-distance", "leash-distance", "speed", "lifetime-ticks", "idle-ticks", "max-active", "hit-memory-ticks",
     "bomb-interval-ticks", "bomb-speed", "bomb-gravity", "bomb-hitbox", "bomb-max-ticks", "bomb-radius", "bomb-damage", "bomb-knockback" })
 public class SummonPink extends Ability {
     /** The BetterModel model: plugins/BetterModel/models/pink.bbmodel (made by models/tools/make_pink.js, copied by deploy). */
@@ -148,7 +149,8 @@ public class SummonPink extends Ability {
             // Only the owner's own fight: whoever they hit or whoever hurt them, whichever was more recent.
             // Nobody else: when the owner is not fighting, Pink! has no target and throws nothing.
             Targeting.ownersFight(settingInt("hit-memory-ticks")),
-            new FollowAndChase(setting("follow-distance"), setting("leash-distance"), setting("speed")),
+            // Never strays more than guard-range from its owner, even with a target; the bombs reach the rest.
+            new GuardOwner(setting("guard-range"), setting("follow-distance"), setting("leash-distance"), setting("speed")),
             List.of(
                 DespawnRules.timeout(settingInt("lifetime-ticks")),
                 DespawnRules.inactivity(settingInt("idle-ticks")),
