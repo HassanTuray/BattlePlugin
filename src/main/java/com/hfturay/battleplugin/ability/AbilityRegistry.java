@@ -54,6 +54,7 @@ import com.hfturay.battleplugin.ability.abilities.muhammadabilities.PipeBomb;
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.RevolutionarySpirit;
 import com.hfturay.battleplugin.ability.abilities.muhammadabilities.Shortcut;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.EndIt;
+import com.hfturay.battleplugin.ability.abilities.swordabilities.DamascusSlash;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonGuy;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonPink;
 import com.hfturay.battleplugin.ability.abilities.shikigamiabilities.SummonWarrior;
@@ -121,6 +122,7 @@ public final class AbilityRegistry {
         register(AbilitySlot.ATTACK, GrandSlam.class);
         register(AbilitySlot.ATTACK, Malware.class);
         register(AbilitySlot.ATTACK, JogaBonito.class);
+        register(AbilitySlot.ATTACK, DamascusSlash.class);
 
         // mobility item
         register(AbilitySlot.MOBILITY, Leap.class);

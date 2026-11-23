@@ -394,6 +394,18 @@ EndIt:
   horizontal-force: 2.5       # push away from the blast
   lift: 1.0                   # and upwards
 
+# ---- Sword techniques ----
+
+# Damascus Slash. A fast vertical sword slash (a white crescent) that flies straight; whoever it hits is launched
+# straight up.
+DamascusSlash:
+  cooldown: 10
+  speed: 2.0             # blocks per tick (2.0 = 40 blocks a second)
+  max-ticks: 15          # how long it flies before it fades (15 ticks at 2.0 = 30 blocks)
+  hitbox: 1.2            # how close it must pass to someone to hit them
+  damage: 3              # health points (3 = a heart and a half)
+  height: 5              # how many blocks straight up the hit launches them (no sideways push)
+
 # ---- Domain item (amethyst shard) ----
 # Test domain: a dome of coal blocks closes around the caster, a cutscene plays, then the domain lasts a while.
 # chaos-cost is the chaos needed to cast it (100 for the real thing; 0 skips the requirement while testing).

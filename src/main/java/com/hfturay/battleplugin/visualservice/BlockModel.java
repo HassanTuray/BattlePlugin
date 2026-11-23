@@ -33,11 +33,18 @@ public final class BlockModel implements VisualSpec {
      *
      * @param tiltDegrees leans the part about its own centre around the model's x axis (left to right): a positive
      *                    angle tips the top of the part forward, towards +z. 0 leaves it upright.
+     * @param rollDegrees leans the part about its own centre around the model's z axis (the way it points): a positive
+     *                    angle tips the top of the part towards -x. Applied after the tilt. 0 leaves it upright.
      */
-    public record Part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ, double tiltDegrees) {
+    public record Part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ,
+                       double tiltDegrees, double rollDegrees) {
+
+        public Part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ, double tiltDegrees) {
+            this(block, x, y, z, sizeX, sizeY, sizeZ, tiltDegrees, 0);
+        }
 
         public Part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ) {
-            this(block, x, y, z, sizeX, sizeY, sizeZ, 0);
+            this(block, x, y, z, sizeX, sizeY, sizeZ, 0, 0);
         }
     }
 
@@ -81,7 +88,9 @@ public final class BlockModel implements VisualSpec {
      */
     public static Transformation transformation(Part part, double scale, Vector direction) {
         Quaternionf orientation = orientation(direction);
-        Quaternionf tilt = new Quaternionf().rotationX((float) Math.toRadians(part.tiltDegrees()));
+        // the part's own lean: tilted (around x) first, then rolled (around z)
+        Quaternionf tilt = new Quaternionf().rotationZ((float) Math.toRadians(part.rollDegrees()))
+            .mul(new Quaternionf().rotationX((float) Math.toRadians(part.tiltDegrees())));
         Vector3f size = new Vector3f((float) (part.sizeX() * scale), (float) (part.sizeY() * scale), (float) (part.sizeZ() * scale));
 
         // The block is scaled in its own axes, tilted about its own centre, then the whole model is turned.
@@ -232,7 +241,18 @@ public final class BlockModel implements VisualSpec {
         }
 
         public Builder part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ, double tiltDegrees) {
-            parts.add(new Part(block, x, y, z, sizeX, sizeY, sizeZ, tiltDegrees));
+            return part(block, x, y, z, sizeX, sizeY, sizeZ, tiltDegrees, 0);
+        }
+
+        /** A part tipped forward or back by tiltDegrees, then leaned sideways by rollDegrees (positive: top towards -x). */
+        public Builder part(Material material, double x, double y, double z, double sizeX, double sizeY, double sizeZ,
+                            double tiltDegrees, double rollDegrees) {
+            return part(material.createBlockData(), x, y, z, sizeX, sizeY, sizeZ, tiltDegrees, rollDegrees);
+        }
+
+        public Builder part(BlockData block, double x, double y, double z, double sizeX, double sizeY, double sizeZ,
+                            double tiltDegrees, double rollDegrees) {
+            parts.add(new Part(block, x, y, z, sizeX, sizeY, sizeZ, tiltDegrees, rollDegrees));
             return this;
         }
 

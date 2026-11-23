@@ -50,6 +50,45 @@ public final class Knockback {
         return set(entity, push);
     }
 
+    /**
+     * Launch straight up so the entity rises about `blocks` blocks, with no sideways push at all (any sideways
+     * movement it had is cancelled).
+     */
+    public static boolean straightUp(Entity entity, double blocks) {
+        return set(entity, new Vector(0, upwardSpeedFor(blocks), 0));
+    }
+
+    /**
+     * The upward speed (blocks per tick) that makes a mob or player rise `blocks` blocks before falling. Worked out
+     * with the game's own falling rule (each tick: move, then speed = (speed - 0.08) * 0.98), so the height is exact
+     * rather than guessed: 5 blocks needs about 0.91.
+     */
+    public static double upwardSpeedFor(double blocks) {
+        if (!(blocks > 0)) {
+            return 0;
+        }
+        double low = 0, high = 10;
+        for (int i = 0; i < 50; i++) {
+            double mid = (low + high) / 2;
+            if (peakHeight(mid) < blocks) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+        return high;
+    }
+
+    /** How high an upward speed carries a mob or player, by the game's falling rule. */
+    static double peakHeight(double speed) {
+        double y = 0;
+        while (speed > 0) {
+            y += speed;
+            speed = (speed - 0.08) * 0.98;
+        }
+        return y;
+    }
+
     /** Unit vector from a point to the entity. Straight up if they are on the same spot. */
     static Vector direction(Location from, Entity entity) {
         Vector delta = entity.getLocation().toVector().subtract(from.toVector());
