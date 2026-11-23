@@ -137,7 +137,9 @@ public final class LoadoutStore {
                     continue;
                 }
                 try {
-                    if (loadout.add(slot, creator.apply(entry.get().type(), owner))) {
+                    // the item it is registered on now, not the one it was saved under: an ability that has moved
+                    // to another item (Explosive Gravity Bomb went from attack to the amethyst shard) follows it there
+                    if (loadout.add(entry.get().slot(), creator.apply(entry.get().type(), owner))) {
                         loaded++;
                     }
                 } catch (RuntimeException e) {

@@ -11,7 +11,7 @@
 # (a saved loadout wins over this file, so apply is how a change here reaches someone who has already played).
 #
 # Ability names are the ones /load accepts (brick, lazer, landmine ...). Each ability goes under its own item:
-# attack, mobility, buff, elemental or shikigami. A mistake in this file is reported in the console and skipped; it never stops joining.
+# attack, mobility, buff, elemental, shikigami or domain (the amethyst shard: domains and maximum techniques). A mistake in this file is reported in the console and skipped; it never stops joining.
 
 # Kit for anyone not listed under "players". Use "none" to give them nothing.
 default: starter
@@ -38,9 +38,10 @@ kits:
     buff: [adrenaline, revolutionaryspirit]
 
   hassan:
-    attack: [brick, malware, explosivegravitybomb, jogabonito]
+    attack: [brick, malware, jogabonito]
     mobility: [leap, flyingraijin]     # flyingraijin = the Raijin mark arrow + Use Raijin
     buff: [adrenaline, shilajit]
+    domain: [explosivegravitybomb]     # a maximum technique: needs 50 chaos
 
   nathan:
     attack: [brick, orbthrow, threehits, grandslam]

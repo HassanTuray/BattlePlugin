@@ -447,17 +447,19 @@ MarkRaijin:
 UseRaijin:
   cooldown: 5
 
-# Malware (Hassan). A very short hitscan infects; the infected take damage over time and infect whatever they hurt.
+# Malware (Hassan). A hitscan infects; the infected take damage over time and infect whatever they hurt.
 Malware:
   cooldown: 10
-  range: 2              # how far the hitscan reaches, in blocks
-  damage: 2              # health points each time (2 = one heart)
-  duration-ticks: 120    # how long the infection lasts (120 = 6 seconds)
-  interval-ticks: 40     # ticks between hits (40 = every 2 seconds, so 3 hits over 6 seconds)
+  range: 10             # how far the hitscan reaches, in blocks
+  damage: 1              # health points each time (1 = half a heart)
+  duration-ticks: 60     # how long the infection lasts (60 = 3 seconds)
+  interval-ticks: 20     # ticks between hits (20 = every second, so 3 hits = 1.5 hearts in all)
 
-# Explosive Gravity Bomb (Hassan). A black hole above you pulls everything in as it shrinks, then explodes.
+# Explosive Gravity Bomb (Hassan), a maximum technique on the amethyst shard. A black hole above you pulls everything in
+# as it shrinks, then explodes.
 ExplosiveGravityBomb:
   cooldown: 10
+  chaos-cost: 50         # chaos needed to use it, and spent when it goes off (the rest of the bar stays)
   height: 5              # how many blocks above your head the black hole forms
   duration-ticks: 120    # how long it takes to shrink from start-radius to end-radius (120 = 6 seconds)
   start-radius: 3        # its size when it appears, in blocks

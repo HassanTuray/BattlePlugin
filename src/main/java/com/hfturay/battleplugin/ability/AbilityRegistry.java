@@ -120,7 +120,6 @@ public final class AbilityRegistry {
         register(AbilitySlot.ATTACK, ThreeHits.class);
         register(AbilitySlot.ATTACK, GrandSlam.class);
         register(AbilitySlot.ATTACK, Malware.class);
-        register(AbilitySlot.ATTACK, ExplosiveGravityBomb.class);
         register(AbilitySlot.ATTACK, JogaBonito.class);
 
         // mobility item
@@ -160,6 +159,9 @@ public final class AbilityRegistry {
         register(AbilitySlot.DOMAIN, NeverendingNight.class);
         register(AbilitySlot.DOMAIN, TitansWrath.class);     // lent to the caster during Neverending Night
         register(AbilitySlot.DOMAIN, DummyDomain.class);
+
+        // maximum techniques (also on the amethyst shard; they cost chaos, see MaximumTechnique)
+        register(AbilitySlot.DOMAIN, ExplosiveGravityBomb.class);
 
         // bundles (every part must be registered above)
         bundle("FlyingRaijin", MarkRaijin.class, UseRaijin.class);

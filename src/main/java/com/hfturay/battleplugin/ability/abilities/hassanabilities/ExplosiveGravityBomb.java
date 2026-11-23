@@ -3,19 +3,20 @@ package com.hfturay.battleplugin.ability.abilities.hassanabilities;
 import org.bukkit.Location;
 
 import com.hfturay.battleplugin.BattlePlugin;
-import com.hfturay.battleplugin.ability.Ability;
 import com.hfturay.battleplugin.ability.Activation;
+import com.hfturay.battleplugin.ability.MaximumTechnique;
 import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
 
 /**
- * Explosive Gravity Bomb: a black hole appears above the caster and drags in everything around it while it shrinks.
- * When it is small enough it explodes, hurting what is close and blasting away everything in range.
+ * Explosive Gravity Bomb, a maximum technique (on the amethyst shard, costs chaos-cost chaos): a black hole appears
+ * above the caster and drags in everything around it while it shrinks. When it is small enough it explodes, hurting
+ * what is close and blasting away everything in range.
  * Every number comes from abilities.yml (ExplosiveGravityBomb section), read each time it is cast.
  */
-@RequiresSettings({ "cooldown", "height", "duration-ticks", "start-radius", "end-radius", "pull-radius", "pull-force",
-    "radius", "blast-radius", "damage", "knockback" })
-public class ExplosiveGravityBomb extends Ability {
+@RequiresSettings({ "cooldown", "chaos-cost", "height", "duration-ticks", "start-radius", "end-radius", "pull-radius",
+    "pull-force", "radius", "blast-radius", "damage", "knockback" })
+public class ExplosiveGravityBomb extends MaximumTechnique {
 
     public ExplosiveGravityBomb(BattlePlayer owner) {
         super(owner);
@@ -24,7 +25,7 @@ public class ExplosiveGravityBomb extends Ability {
     }
 
     @Override
-    protected Activation onActivate() {
+    protected Activation cast() {
         GravityBombTask.Settings settings = new GravityBombTask.Settings(
             settingInt("duration-ticks"), setting("start-radius"), setting("end-radius"),
             setting("pull-radius"), setting("pull-force"),
