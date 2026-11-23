@@ -15,15 +15,15 @@ final class SwordVisuals {
     private static final int PIECES = 13;
     private static final double MAX_THICKNESS = 0.2;
     private static final double MIN_THICKNESS = 0.04;
-    private static final double TIP_SWEEP = 0.35;   // how far back the tips trail behind the middle
+    private static final double WIDTH = 0.1;        // side to side
 
     /**
-     * Damascus Slash: a white crescent standing upright and facing the way it flies, like the trace a sword leaves on a
-     * vertical swing. It is thickest in the middle and thins to points at both tips, and the tips trail back a little.
-     * The projectile is at the middle of the arc. About 2.1 blocks from tip to tip.
+     * Damascus Slash: a white crescent standing upright, its peak (the middle of the arc) leading the way it flies and
+     * both tips curving back behind it, like the trace a sword leaves on a vertical swing. It is thickest in the middle
+     * and thins to points at both tips. The projectile is at the peak. About 2.1 blocks from tip to tip.
      *
-     * The arc is PIECES short white blocks around a circle: each one sits on the circle and is leaned sideways (roll) to
-     * run along it.
+     * The arc is PIECES short white blocks around a circle in the up-forward plane: each one sits on the circle and is
+     * tipped (tilt) to run along it.
      */
     static final VisualSpec DAMASCUS_SLASH = buildSlash();
 
@@ -32,14 +32,14 @@ final class SwordVisuals {
         double step = 2 * SPAN / (PIECES - 1);
         double chord = 2 * RADIUS * Math.sin(Math.toRadians(step / 2)) + 0.05;     // a little overlap, so no gaps
         for (int i = 0; i < PIECES; i++) {
-            double angle = -SPAN + i * step;
+            double angle = -SPAN + i * step;                           // 0 at the peak, positive going up
             double radians = Math.toRadians(angle);
-            double x = RADIUS * Math.cos(radians) - RADIUS;            // the middle at the projectile, the tips curling to -x
             double y = RADIUS * Math.sin(radians);
-            double z = -TIP_SWEEP * (1 - Math.cos(radians)) / (1 - Math.cos(Math.toRadians(SPAN)));
-            double edge = Math.abs(angle) / SPAN;                      // 0 in the middle, 1 at a tip
+            double z = RADIUS * Math.cos(radians) - RADIUS;            // the peak at the projectile, the tips curving back
+            double edge = Math.abs(angle) / SPAN;                      // 0 at the peak, 1 at a tip
             double thickness = MIN_THICKNESS + (MAX_THICKNESS - MIN_THICKNESS) * (1 - edge * edge);
-            slash.part(Material.WHITE_CONCRETE, x, y, z, thickness, chord, 0.08, 0, angle);
+            // tipped back by the angle, so each piece runs along the curve (a positive tilt would lean it forward)
+            slash.part(Material.WHITE_CONCRETE, 0, y, z, WIDTH, chord, thickness, -angle);
         }
         return slash.build();
     }

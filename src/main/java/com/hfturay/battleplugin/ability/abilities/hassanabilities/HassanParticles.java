@@ -10,6 +10,21 @@ import com.hfturay.battleplugin.particleservice.ParticleSpec;
 final class HassanParticles {
     private HassanParticles() {}
 
+    // ---- Malware ----
+
+    /** How long the infection line stays up, in ticks (10 = half a second). It follows both ends while it does. */
+    static final int MALWARE_LINK_TICKS = 10;
+
+    /**
+     * The infection line: a green line from whoever passed Malware on (the caster, or an infected entity it spread
+     * from) to the one it just infected, the same green as the virus. Play with ParticleService.beam(...).
+     */
+    static final ParticleSpec MALWARE_LINK = DirectSpec.of(Particle.DUST)
+        .dust(0.8f, Color.fromRGB(70, 220, 70))
+        .shape(DirectSpec.Shape.LINE)
+        .count(5)
+        .build();
+
     // ---- Flying Raijin ----
 
     /** The marking arrow in flight: a few bright sparks trailing just behind the ring at the end of the kunai. */

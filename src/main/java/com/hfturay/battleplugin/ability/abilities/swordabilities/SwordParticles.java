@@ -14,7 +14,7 @@ final class SwordParticles {
         .shape(DirectSpec.Shape.POINT)
         .count(3)
         .spread(0.05, 0.8, 0.05)
-        .offset(-0.15, 0, -0.2)
+        .offset(0, 0, -0.3)
         .orient(true)
         .build();
 
