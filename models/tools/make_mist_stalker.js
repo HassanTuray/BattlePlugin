@@ -7,9 +7,11 @@
 //
 // Units are Blockbench pixels (16 = one block). The model faces -Z. +X is its right.
 // The legs and neck are straight segments aimed from one point to another: each segment is a cube standing along +Y
-// inside a bone that is turned (a fixed rotation in the model) to point the right way. Blockbench rotations are
-// [x, y, z] degrees; in the usual right-hand sense they turn by -x, -y and +z (the same convention make_mahoraga.js's
-// preview uses), applied x first, then y, then z.
+// inside a bone that is turned (a fixed rotation in the model) to point the right way.
+// Blockbench writes rotations as [x, y, z] degrees, applied x first, then y, then z, but with two different signs:
+//   - a bone's fixed rotation is in the usual right-hand sense: it turns by +x, +y, +z;
+//   - an animation keyframe turns by -x, -y, +z (the convention make_mahoraga.js's animations use).
+// (Using the animation sign for the fixed rotations once turned the neck backwards, away from the head.)
 const fs = require('fs');
 const zlib = require('zlib');
 const crypto = require('crypto');
@@ -120,8 +122,7 @@ function group(name, origin, children, opt = {}) {
 
 /**
  * A straight segment from `a` to `b`, `width` thick: a bone at `a` holding a cube that stands along +Y, turned to
- * point at `b`. In the right-hand sense the turn is x by asin(dz), then z by atan2(-dx, dy); Blockbench writes the x
- * turn with the opposite sign.
+ * point at `b`: x by asin(dz), then z by atan2(-dx, dy) (a bone's fixed rotation, so in the right-hand sense).
  */
 function segment(name, mat, a, b, width) {
   const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
@@ -131,7 +132,7 @@ function segment(name, mat, a, b, width) {
   const az = Math.atan2(-dx, dy) * 180 / Math.PI;
   const h = width / 2;
   const id = cube(name, mat, [a[0] - h, a[1], a[2] - h], [a[0] + h, a[1] + length, a[2] + h]);
-  return group(name, a, [id], { rotation: [round(-ax), 0, round(az)] });
+  return group(name, a, [id], { rotation: [round(ax), 0, round(az)] });
 }
 const round = (v) => Math.round(v * 100) / 100;
 
@@ -341,14 +342,18 @@ function validate(model) {
 
 // ---------------------------------------------------------------- preview (rest and animated poses)
 const deg = (d) => (d * Math.PI) / 180;
-/** Turns a point about `o` by Blockbench [x, y, z] degrees (right-hand -x, -y, +z; x first, then y, then z). */
-function rotateBB(p, o, [rx, ry, rz]) {
+/** Turns a point about `o` by right-hand [x, y, z] degrees, x first, then y, then z. */
+function rotate(p, o, [rx, ry, rz]) {
   let [x, y, z] = [p[0] - o[0], p[1] - o[1], p[2] - o[2]];
-  let c = Math.cos(deg(-rx)), s = Math.sin(deg(-rx)); [y, z] = [y * c - z * s, y * s + z * c];
-  c = Math.cos(deg(-ry)); s = Math.sin(deg(-ry)); [x, z] = [x * c + z * s, -x * s + z * c];
+  let c = Math.cos(deg(rx)), s = Math.sin(deg(rx)); [y, z] = [y * c - z * s, y * s + z * c];
+  c = Math.cos(deg(ry)); s = Math.sin(deg(ry)); [x, z] = [x * c + z * s, -x * s + z * c];
   c = Math.cos(deg(rz)); s = Math.sin(deg(rz)); [x, y] = [x * c - y * s, x * s + y * c];
   return [x + o[0], y + o[1], z + o[2]];
 }
+/** A bone's fixed rotation: right-hand as written. */
+const rotateFixed = (p, o, r) => rotate(p, o, r);
+/** An animation keyframe's rotation: Blockbench flips x and y. */
+const rotateAnimated = (p, o, [rx, ry, rz]) => rotate(p, o, [-rx, -ry, rz]);
 
 function sample(rows, t) {
   if (!rows || !rows.length) return [0, 0, 0];
@@ -397,10 +402,10 @@ function renderPreview(model, outliner, file, views) {
       for (const x of [a[0], b[0]]) for (const y of [a[1], b[1]]) for (const z of [a[2], b[2]]) {
         let p = [x, y, z];
         for (const g of chain.get(e.uuid)) {
-          if (g.rotation) p = rotateBB(p, g.origin, g.rotation);
+          if (g.rotation) p = rotateFixed(p, g.origin, g.rotation);
           const pg = pose[g.name];
           if (!pg) continue;
-          p = rotateBB(p, g.origin, pg.rot);
+          p = rotateAnimated(p, g.origin, pg.rot);
           p = [p[0] - pg.pos[0], p[1] + pg.pos[1], p[2] + pg.pos[2]];
         }
         pts.push(p);
