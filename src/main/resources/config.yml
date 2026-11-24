@@ -19,6 +19,8 @@ resource-pack:
   # more packs, sent alongside the first (this one recolours the experience bar red for chaos)
   extra-urls:
     - "https://raw.githubusercontent.com/HassanTuray/BattlePlugin/main/resourcepack/ChaosBar.zip"
+    # the Seattle Mist fog: a shader that turns the game's fog into white mist while the domain asks for it
+    - "https://raw.githubusercontent.com/HassanTuray/BattlePlugin/main/resourcepack/MistFog.zip"
 
 # Chaos: the energy bar on the experience bar. Gained by dealing damage and kills, lost on death.
 # Later, domain expansions will need a full bar. Above "full" the bar stays full but the number keeps counting.

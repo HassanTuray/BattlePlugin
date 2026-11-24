@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 /**
@@ -15,9 +16,11 @@ import org.bukkit.entity.Player;
  */
 public final class Scene {
 
-    /** What a cue can use while it runs. */
-    /** anchor: where the scene is centred; camera: where the camera is right now (for things that must face it). */
-    public record Context(Location anchor, List<Player> viewers, int tick, Location camera) { }
+    /**
+     * What a cue can use while it runs. anchor: where the scene is centred; camera: where the camera is right now (for
+     * things that must face it); cameraEntity: the entity the viewers are looking through.
+     */
+    public record Context(Location anchor, List<Player> viewers, int tick, Location camera, Entity cameraEntity) { }
 
     /** Something that happens when the scene reaches a tick. */
     public record Cue(int tick, Consumer<Context> action) { }
@@ -26,12 +29,14 @@ public final class Scene {
     private final CameraPath path;
     private final List<Cue> cues;
     private final double lockRadius;
+    private final boolean livingCamera;
 
-    private Scene(String name, CameraPath path, List<Cue> cues, double lockRadius) {
+    private Scene(String name, CameraPath path, List<Cue> cues, double lockRadius, boolean livingCamera) {
         this.name = name;
         this.path = path;
         this.cues = cues;
         this.lockRadius = lockRadius;
+        this.livingCamera = livingCamera;
     }
 
     public String name() {
@@ -55,6 +60,11 @@ public final class Scene {
         return path.totalTicks();
     }
 
+    /** True if the camera is a living entity (see Builder.livingCamera), false for the usual smooth display camera. */
+    public boolean livingCamera() {
+        return livingCamera;
+    }
+
     public static Builder builder(String name, CameraPath path) {
         return new Builder(name, path);
     }
@@ -64,6 +74,7 @@ public final class Scene {
         private final CameraPath path;
         private final List<Cue> cues = new ArrayList<>();
         private double lockRadius = 35;
+        private boolean livingCamera = false;
 
         private Builder(String name, CameraPath path) {
             this.name = name;
@@ -81,8 +92,19 @@ public final class Scene {
             return this;
         }
 
+        /**
+         * Looks through an invisible marker armor stand instead of the usual display entity. A living camera can be
+         * given effects the viewers see the world through (the game draws fog from the camera's effects, so the
+         * Seattle Mist fog uses this). Its movement is not smoothed, so use it for cameras that hold still or move
+         * slowly.
+         */
+        public Builder livingCamera() {
+            this.livingCamera = true;
+            return this;
+        }
+
         public Scene build() {
-            return new Scene(name, path, List.copyOf(cues), lockRadius);
+            return new Scene(name, path, List.copyOf(cues), lockRadius, livingCamera);
         }
     }
 }

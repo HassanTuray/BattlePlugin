@@ -450,8 +450,8 @@ TitansWrath:
 
 # ---- Domain: Seattle Mist (amethyst shard) ----
 # A grey dome closes; a cutscene shows it filling with mist until almost nothing can be seen, then "The Mist is Here".
-# The mist stays for the whole domain and the Mist Stalker is let loose in it (for now it runs at the nearest enemy:
-# players, others' shikigami, hostile mobs; or follows you).
+# The mist (drawn by the MistFog resource pack) stays for the whole domain, and the Mist Stalker is let loose in it
+# (for now it runs at the nearest enemy: players, others' shikigami, hostile mobs; or follows you).
 SeattleMist:
   cooldown: 5
   chaos-cost: 0               # chaos needed to cast it (100 for the real thing; 0 while testing)
@@ -459,9 +459,7 @@ SeattleMist:
   thickness: 2                # how thick its wall is
   form-ticks: 40              # how long the dome takes to close (40 = 2 seconds)
   duration-ticks: 900         # how long the domain lasts after the cutscene (900 = 45 seconds)
-  mist-puffs: 260             # how many mist squares fill the dome: more = thicker mist
-  mist-size: 7                # how big each mist square is (blocks)
-  mist-opacity: 45            # how solid each one is (0 = invisible, 255 = solid white): higher = thicker mist
+  mist-thickness: 0.7         # how thick the mist is during the domain: 0 = none, 1 = the thickest (gone at 10 blocks; 0.7 = about 14)
   affects-caster: 1           # 1 = the mist covers you too (for testing); 0 = you see through it
   # the Mist Stalker
   health: 40                  # its health points (2 = one heart)

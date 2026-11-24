@@ -28,7 +28,7 @@ import com.hfturay.battleplugin.targetingservice.Targets;
 /**
  * Domain: Seattle Mist (on the amethyst shard). A grey dome closes, and a cutscene shows it filling with mist until
  * almost nothing can be seen; then "The Mist is Here" (see SeattleMistEffects). The mist stays for the whole domain,
- * and the Mist Stalker is let loose in it.
+ * and the Mist Stalker is let loose in it. The mist is drawn by the MistFog resource pack (resourcepack/mistfog).
  *
  * The Mist Stalker: a gaunt black thing about 4 blocks tall on six spindly legs, with a jutting neck and tiny white eyes
  * (models/mist_stalker.bbmodel, made by models/tools/make_mist_stalker.js). For now it runs at the nearest enemy (a
@@ -39,7 +39,7 @@ import com.hfturay.battleplugin.targetingservice.Targets;
  * Every number comes from abilities.yml (SeattleMist section), read when it is cast.
  */
 @RequiresSettings({ "cooldown", "chaos-cost", "radius", "thickness", "form-ticks", "duration-ticks",
-    "mist-puffs", "mist-size", "mist-opacity", "affects-caster",
+    "mist-thickness", "affects-caster",
     "health", "damage", "attack-range", "attack-interval-ticks", "attack-hit-delay-ticks",
     "target-range", "follow-distance", "leash-distance", "speed" })
 public class SeattleMist extends DomainAbility {
@@ -55,7 +55,7 @@ public class SeattleMist extends DomainAbility {
     @Override
     protected DomainService.Spec buildSpec() {
         SeattleMistEffects.Settings settings = new SeattleMistEffects.Settings(
-            settingInt("mist-puffs"), setting("mist-size"), settingInt("mist-opacity"), setting("affects-caster") > 0);
+            Math.max(0, Math.min(1, setting("mist-thickness"))), setting("affects-caster") > 0);
         SeattleMistEffects effects = new SeattleMistEffects(settings, this::releaseStalker);
         double radius = setting("radius");
 

@@ -21,6 +21,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.LivingEntity;
@@ -45,7 +46,8 @@ import com.hfturay.battleplugin.stunservice.Stun;
  *
  * How it works: each scene spawns one invisible display entity (the camera), visible only to the viewers. Viewers are
  * put in spectator mode and spectate it, so they see through it. Every tick the camera is moved along the path; the
- * display entity smooths the movement on the client. Spectator mode freezes the viewers, and on top of that they are
+ * display entity smooths the movement on the client. (A scene can ask for a living camera instead, an invisible
+ * marker armor stand, when it needs to give the camera effects; see Scene.Builder.livingCamera.) Spectator mode freezes the viewers, and on top of that they are
  * silenced and made immune for the whole scene. Mobs nearby are frozen and made immune too.
  *
  * Safety: before anyone is put in spectator mode their game mode, position and flight are written to cutscenes.yml.
@@ -67,7 +69,7 @@ public final class CutsceneService implements Listener {
         final Location anchor;
         final List<Player> viewers;
         final Runnable onFinish;
-        ItemDisplay camera;
+        Entity camera;
         BukkitTask task;
         int tick = 0;
         boolean ended = false;
@@ -129,14 +131,28 @@ public final class CutsceneService implements Listener {
 
         Session session = new Session(scene, anchor.clone(), watching, onFinish);
         Location start = place(session, scene.path().pose(0));
-        session.camera = world.spawn(start, ItemDisplay.class, display -> {
-            display.setVisibleByDefault(false);
-            display.setPersistent(false);
-            display.setGravity(false);
-            display.setInvulnerable(true);
-            display.setTeleportDuration(TELEPORT_DURATION);
-            display.getPersistentDataContainer().set(cameraKey, PersistentDataType.BYTE, (byte) 1);
-        });
+        if (scene.livingCamera()) {
+            // a marker armor stand: living (so it can carry effects the viewers see through), with no size of its own
+            session.camera = world.spawn(start, ArmorStand.class, stand -> {
+                stand.setMarker(true);
+                stand.setInvisible(true);
+                stand.setSilent(true);
+                stand.setVisibleByDefault(false);
+                stand.setPersistent(false);
+                stand.setGravity(false);
+                stand.setInvulnerable(true);
+                stand.getPersistentDataContainer().set(cameraKey, PersistentDataType.BYTE, (byte) 1);
+            });
+        } else {
+            session.camera = world.spawn(start, ItemDisplay.class, display -> {
+                display.setVisibleByDefault(false);
+                display.setPersistent(false);
+                display.setGravity(false);
+                display.setInvulnerable(true);
+                display.setTeleportDuration(TELEPORT_DURATION);
+                display.getPersistentDataContainer().set(cameraKey, PersistentDataType.BYTE, (byte) 1);
+            });
+        }
 
         int lock = scene.totalTicks() + 5;
         for (Player player : watching) {
@@ -196,7 +212,8 @@ public final class CutsceneService implements Listener {
         for (Scene.Cue cue : session.scene.cues()) {
             if (cue.tick() == session.tick) {
                 try {
-                    cue.action().accept(new Scene.Context(session.anchor, List.copyOf(session.viewers), session.tick, session.camera.getLocation()));
+                    cue.action().accept(new Scene.Context(session.anchor, List.copyOf(session.viewers), session.tick,
+                        session.camera.getLocation(), session.camera));
                 } catch (RuntimeException e) {
                     logger.log(Level.WARNING, "A cue in the cutscene '" + session.scene.name() + "' failed at tick " + session.tick, e);
                 }
@@ -353,9 +370,9 @@ public final class CutsceneService implements Listener {
         }
         writeJournal();
         for (World world : Bukkit.getWorlds()) {
-            for (ItemDisplay display : world.getEntitiesByClass(ItemDisplay.class)) {
-                if (display.getPersistentDataContainer().has(cameraKey, PersistentDataType.BYTE)) {
-                    display.remove();
+            for (Entity entity : world.getEntities()) {        // display cameras and living (armor stand) cameras
+                if (entity.getPersistentDataContainer().has(cameraKey, PersistentDataType.BYTE)) {
+                    entity.remove();
                 }
             }
         }
