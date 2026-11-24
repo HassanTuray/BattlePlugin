@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 
@@ -31,13 +32,14 @@ import com.hfturay.battleplugin.shikigamiservice.TargetingStrategy;
  * and the Mist Stalker is let loose in it. The mist is drawn by the MistFog resource pack (resourcepack/mistfog).
  *
  * The Mist Stalker: a gaunt black thing about 4 blocks tall on six spindly legs, with a jutting neck and tiny white eyes
- * (models/mist_stalker.bbmodel, made by models/tools/make_mist_stalker.js). It hunts one chosen player caught in the
- * domain, picked by SeattleMistEffects: only they can see it, hear its footsteps and its screech, and it runs at them
- * and strikes when it reaches them. When they are gone another player is chosen.
+ * (models/mist_stalker.bbmodel, made by models/tools/make_mist_stalker.js). It hunts one chosen living thing in the
+ * dome (a player or a mob), picked by SeattleMistEffects, and strikes when it reaches it. A chosen player is the only
+ * one who can see it and hear its footsteps and screech; while a mob is chosen, no player can. When the chosen one is
+ * gone, another is picked from whatever is left in the dome.
  *
  * For testing: the mist also covers the caster (affects-caster: 1), the caster can be the chosen one
- * (stalker-hunts-caster: 1; it chases and lunges at them, but cannot hurt its own caster), and the domain costs no
- * chaos (chaos-cost: 0). Every number comes from abilities.yml (SeattleMist section), read when it is cast.
+ * (stalker-hunts-caster: 1; its strikes then hurt them too, which no other shikigami does to its own caster), and the
+ * domain costs no chaos (chaos-cost: 0). Every number comes from abilities.yml (SeattleMist section), read when it is cast.
  */
 @RequiresSettings({ "cooldown", "chaos-cost", "radius", "thickness", "form-ticks", "duration-ticks",
     "mist-thickness", "affects-caster", "stalker-hunts-caster",
@@ -72,30 +74,29 @@ public class SeattleMist extends DomainAbility {
      * Lets the Mist Stalker loose at this spot, hunting whoever `chosen` says. It lasts until the domain ends (or
      * something kills it first).
      */
-    private BrainShikigami releaseStalker(Location where, Supplier<Player> chosen) {
+    private BrainShikigami releaseStalker(Location where, Supplier<LivingEntity> chosen) {
         Zombie zombie = where.getWorld().spawn(where, Zombie.class);
         BrainShikigami stalker = new BrainShikigami(zombie, owner, stalkerSpec(chosen));
         BattlePlugin.getInstance().getShikigamiService().add(stalker);
         return stalker;
     }
 
-    /** Always the chosen one, while they are in the stalker's world; nobody else, ever. */
-    private static TargetingStrategy hunt(Supplier<Player> chosen) {
+    /** Always the chosen one (a player or a mob), while it is alive in the stalker's world; nothing else, ever. */
+    private static TargetingStrategy hunt(Supplier<LivingEntity> chosen) {
         return self -> {
-            Player prey = chosen.get();
-            return prey != null && prey.isOnline() && !prey.isDead() && prey.getWorld().equals(self.mob().getWorld()) ? prey : null;
+            LivingEntity prey = chosen.get();
+            return prey != null && prey.isValid() && !prey.isDead() && prey.getWorld().equals(self.mob().getWorld()) ? prey : null;
         };
     }
 
-    /** Plays a sound at the stalker that only the chosen one hears. */
-    private static void toChosen(Supplier<Player> chosen, BrainShikigami self, Sound sound, float volume, float pitch) {
-        Player prey = chosen.get();
-        if (prey != null && prey.isOnline()) {
+    /** Plays a sound at the stalker that only the chosen one hears (nobody, when a mob is chosen). */
+    private static void toChosen(Supplier<LivingEntity> chosen, BrainShikigami self, Sound sound, float volume, float pitch) {
+        if (chosen.get() instanceof Player prey && prey.isOnline()) {
             prey.playSound(self.mob().getEyeLocation(), sound, SoundCategory.HOSTILE, volume, pitch);
         }
     }
 
-    private ShikigamiSpec stalkerSpec(Supplier<Player> chosen) {
+    private ShikigamiSpec stalkerSpec(Supplier<LivingEntity> chosen) {
         return new ShikigamiSpec(
             "Mist Stalker",
             setting("health"),
@@ -136,6 +137,8 @@ public class SeattleMist extends DomainAbility {
             self -> {
                 toChosen(chosen, self, Sound.ENTITY_GHAST_SCREAM, 2.0f, 0.6f);
                 toChosen(chosen, self, Sound.ENTITY_ENDERMAN_SCREAM, 2.0f, 0.5f);
-            });
+            },
+            // when the caster can be chosen (testing), its strikes on them land too
+            setting("stalker-hunts-caster") > 0);
     }
 }

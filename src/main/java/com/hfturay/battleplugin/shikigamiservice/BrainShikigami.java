@@ -165,8 +165,7 @@ public class BrainShikigami extends Shikigami {
         if (target == null) {
             return false;
         }
-        if (!target.isValid() || target.isDead() || !Targets.isTargetable(getOwner(), target)
-            || !target.getWorld().equals(mob().getWorld())) {
+        if (!target.isValid() || target.isDead() || !mayHit(target) || !target.getWorld().equals(mob().getWorld())) {
             return false;
         }
         double range = spec.targetRange() * 2;
@@ -207,8 +206,14 @@ public class BrainShikigami extends Shikigami {
         }
     }
 
+    /** Whoever its owner may hit; and its owner too, if the spec allows it (canHurtOwner, for testing). */
+    private boolean mayHit(LivingEntity entity) {
+        return Targets.isTargetable(getOwner(), entity)
+            || (spec.canHurtOwner() && entity.getUniqueId().equals(ownerId()));
+    }
+
     private void landHit(LivingEntity victim) {
-        if (victim == null || !victim.isValid() || victim.isDead() || !Targets.isTargetable(getOwner(), victim)) {
+        if (victim == null || !victim.isValid() || victim.isDead() || !mayHit(victim)) {
             return;
         }
         // They may have stepped away during the swing: allow a little extra reach, then it is a miss.

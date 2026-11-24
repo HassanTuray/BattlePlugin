@@ -21,6 +21,7 @@ import org.bukkit.entity.Mob;
  * @param animations      which model animations the brain's names mean, for example "attack" -> [swing_1, swing_2]
  * @param hitDelay        ticks between starting the attack animation and the hit landing (0 = at once)
  * @param onAttack        runs the moment it starts an attack (a sound, a flash), before the hit lands; may do nothing
+ * @param canHurtOwner    true lets its hits land on its own owner, who it normally can never hurt (only for testing)
  */
 public record ShikigamiSpec(
     String name,
@@ -38,14 +39,15 @@ public record ShikigamiSpec(
     String model,
     java.util.Map<String, List<String>> animations,
     int hitDelay,
-    Consumer<BrainShikigami> onAttack) {
+    Consumer<BrainShikigami> onAttack,
+    boolean canHurtOwner) {
 
-    /** A spec with nothing extra happening when it attacks. */
+    /** A spec with nothing extra happening when it attacks, that cannot hurt its owner. */
     public ShikigamiSpec(String name, double maxHealth, double damage, double attackRange, int attackInterval,
                          double targetRange, TargetingStrategy targeting, Movement movement, List<DespawnRule> rules,
                          EndReaction onEnd, List<ShikigamiTrigger> triggers, Consumer<Mob> look, String model,
                          java.util.Map<String, List<String>> animations, int hitDelay) {
         this(name, maxHealth, damage, attackRange, attackInterval, targetRange, targeting, movement, rules, onEnd,
-            triggers, look, model, animations, hitDelay, self -> { });
+            triggers, look, model, animations, hitDelay, self -> { }, false);
     }
 }

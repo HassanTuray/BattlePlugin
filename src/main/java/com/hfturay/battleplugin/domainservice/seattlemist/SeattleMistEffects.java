@@ -28,6 +28,7 @@ import com.hfturay.battleplugin.domainservice.DomainService.Behavior;
 import com.hfturay.battleplugin.domainservice.DomainService.Domain;
 import com.hfturay.battleplugin.domainservice.DomainService.Phase;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
+import com.hfturay.battleplugin.targetingservice.Targets;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -47,9 +48,10 @@ import net.kyori.adventure.title.Title;
  * always even (the shader reads 2k and 2k - 1 the same, so the mist does not flicker). The server never applies the
  * blindness itself, and takes it off each player's game when they leave the dome or the domain ends.
  *
- * The chosen one: when the domain begins, one player caught in it is picked at random. Only they can see the Mist
- * Stalker (everyone else has it hidden: the mob, its model and its sounds), and it hunts only them. If they die, leave
- * the dome or log off, another player in the dome is chosen, so there is never more than one at a time. With nobody to
+ * The chosen one: when the domain begins, one living thing in the dome (a player or a mob) is picked at random, and the
+ * Mist Stalker hunts only it. If it is a player, only they can see the stalker (everyone else has it hidden: the mob,
+ * its model and its sounds); if it is a mob, no player can see it at all. When the chosen one dies, leaves the dome or
+ * logs off, another is picked from whatever is left, so there is never more than one at a time. With nothing left to
  * choose, the stalker is hidden from everyone.
  *
  * One of these is made for every cast, with the numbers read from abilities.yml at that moment.
@@ -69,7 +71,7 @@ public final class SeattleMistEffects implements Behavior {
      */
     @FunctionalInterface
     public interface StalkerMaker {
-        BrainShikigami release(Location where, Supplier<Player> chosen);
+        BrainShikigami release(Location where, Supplier<LivingEntity> chosen);
     }
 
     /** How often everyone's view of the stalker is checked again (players arriving, the chosen one changing). */
@@ -120,7 +122,7 @@ public final class SeattleMistEffects implements Behavior {
     /** Everyone whose game currently has the mist switched on. */
     private final Set<UUID> misted = new HashSet<>();
     private BrainShikigami released;
-    /** The one player who can see the stalker and is hunted by it, or null. */
+    /** The one thing (player or mob) the stalker hunts, or null; if it is a player, the only one who can see it. */
     private UUID chosen;
 
     public SeattleMistEffects(Settings settings, StalkerMaker stalker) {
@@ -128,9 +130,9 @@ public final class SeattleMistEffects implements Behavior {
         this.stalker = stalker;
     }
 
-    /** The chosen one, if they are still around; the stalker asks this every time it picks its target. */
-    public Player chosen() {
-        return chosen == null ? null : Bukkit.getPlayer(chosen);
+    /** The chosen one, if it is still around; the stalker asks this every time it picks its target. */
+    public LivingEntity chosen() {
+        return chosen != null && Bukkit.getEntity(chosen) instanceof LivingEntity living ? living : null;
     }
 
     // ---- the cutscene ----
@@ -194,14 +196,14 @@ public final class SeattleMistEffects implements Behavior {
         }
     }
 
-    private boolean isInDome(Player player) {
-        if (!player.getWorld().equals(domain.world())) {
+    private boolean isInDome(Entity entity) {
+        if (!entity.getWorld().equals(domain.world())) {
             return false;
         }
         Location center = domain.center().add(0.5, 0, 0.5);
         double radius = domain.spec().radius();
-        double dy = player.getLocation().getY() - center.getY();
-        return dy >= -1 && player.getLocation().distanceSquared(center) <= radius * radius;
+        double dy = entity.getLocation().getY() - center.getY();
+        return dy >= -1 && entity.getLocation().distanceSquared(center) <= radius * radius;
     }
 
     // ---- hooks ----
@@ -214,45 +216,57 @@ public final class SeattleMistEffects implements Behavior {
 
     // ---- the chosen one ----
 
-    /** Who may be chosen: players caught in the dome who are alive, playing and still inside (the caster only if huntsCaster). */
-    private List<Player> candidates(Domain d) {
-        List<Player> candidates = new ArrayList<>();
-        for (Player player : d.caughtPlayers()) {
-            boolean caster = player.getUniqueId().equals(d.caster().getUniqueId());
-            if ((caster && !settings.huntsCaster()) || player.isDead() || player.getGameMode() == GameMode.SPECTATOR
-                || !isInDome(player)) {
+    /**
+     * What may be chosen: every living thing inside the dome that the caster's shikigami may attack (players and mobs,
+     * including other players' shikigami; never the stalker or the caster's own), alive and not spectating. The caster
+     * is added only if huntsCaster.
+     */
+    private List<LivingEntity> candidates(Domain d) {
+        List<LivingEntity> candidates = new ArrayList<>();
+        Player caster = d.caster();
+        double radius = d.spec().radius();
+        for (LivingEntity living : d.world().getNearbyLivingEntities(d.center().add(0.5, 0, 0.5), radius)) {
+            if (living.isDead() || !isInDome(living)) {
                 continue;
             }
-            candidates.add(player);
+            if (living.equals(caster)) {
+                if (settings.huntsCaster() && caster.getGameMode() != GameMode.SPECTATOR) {
+                    candidates.add(living);
+                }
+                continue;
+            }
+            if (Targets.isTargetable(caster.getUniqueId(), living)) {
+                candidates.add(living);
+            }
         }
         return candidates;
     }
 
     /**
-     * Keeps the chosen one while they are still a candidate; otherwise picks another at random (or nobody). When it
-     * changes, the stalker is shown to the new one and hidden from the old.
+     * Keeps the chosen one while it is still a candidate; otherwise picks another at random from what is left (or
+     * nothing). When it changes, the stalker is shown to the new one (if a player) and hidden from everyone else.
      */
     private void choose(Domain d) {
-        List<Player> candidates = candidates(d);
-        Player current = chosen();
+        List<LivingEntity> candidates = candidates(d);
+        LivingEntity current = chosen();
         if (current != null && candidates.contains(current)) {
             return;
         }
         UUID before = chosen;
-        Player next = candidates.isEmpty() ? null : candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+        LivingEntity next = candidates.isEmpty() ? null : candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         chosen = next == null ? null : next.getUniqueId();
         if (Objects.equals(before, chosen)) {
             return;
         }
-        if (next != null) {
+        if (next instanceof Player player) {
             // only they hear that something has noticed them
-            next.playSound(next.getLocation(), Sound.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 1.0f, 0.6f);
-            next.playSound(next.getLocation(), Sound.AMBIENT_CAVE, SoundCategory.HOSTILE, 1.0f, 0.5f);
+            player.playSound(player.getLocation(), Sound.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 1.0f, 0.6f);
+            player.playSound(player.getLocation(), Sound.AMBIENT_CAVE, SoundCategory.HOSTILE, 1.0f, 0.5f);
         }
         showStalkerToChosen(d);
     }
 
-    /** Only the chosen one sees the stalker; it is hidden from every other player in the world. */
+    /** Only a chosen player sees the stalker; it is hidden from every other player in the world (from all, if a mob is chosen). */
     private void showStalkerToChosen(Domain d) {
         if (released == null || !released.mob().isValid()) {
             return;
