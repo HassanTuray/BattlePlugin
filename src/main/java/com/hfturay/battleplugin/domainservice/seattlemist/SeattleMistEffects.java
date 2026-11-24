@@ -61,13 +61,13 @@ public final class SeattleMistEffects implements Behavior {
     private static final int FULL = 20;
 
     /**
-     * "The Mist is Here": black, bold, with a space between letters (three between words) so they do not run together,
-     * and no text shadow (a title always gets one, and a dark shadow under black letters smudges them). The shadow is
-     * switched off by giving it a see-through colour, shadow_color 0, which Minecraft 1.21.4 and later understand. The
-     * plugin is built against an older API with no way to say that, so the words are written in Minecraft's own text
-     * format and read by the server, whose newer Adventure library knows shadow_color.
+     * "THE MIST IS HERE": black, bold, in capitals, with a space between letters (three between words) so they do not
+     * run together, and no text shadow (a title always gets one, and a dark shadow under black letters smudges them).
+     * The shadow is switched off by giving it a see-through colour, shadow_color 0, which Minecraft 1.21.4 and later
+     * understand. The plugin is built against an older API with no way to say that, so the words are written in
+     * Minecraft's own text format and read by the server, whose newer Adventure library knows shadow_color.
      */
-    private static final Component WORDS = words(spaced("The Mist is Here"));
+    private static final Component WORDS = words(spaced("THE MIST IS HERE"));
 
     /** The words without a shadow, or (if the server cannot read that) plain black bold words with one. */
     private static Component words(String text) {
