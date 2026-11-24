@@ -20,6 +20,7 @@ import org.bukkit.entity.Mob;
  * @param model           the BetterModel model to draw it with (file name without .bbmodel), or null for a plain mob
  * @param animations      which model animations the brain's names mean, for example "attack" -> [swing_1, swing_2]
  * @param hitDelay        ticks between starting the attack animation and the hit landing (0 = at once)
+ * @param onAttack        runs the moment it starts an attack (a sound, a flash), before the hit lands; may do nothing
  */
 public record ShikigamiSpec(
     String name,
@@ -36,4 +37,15 @@ public record ShikigamiSpec(
     Consumer<Mob> look,
     String model,
     java.util.Map<String, List<String>> animations,
-    int hitDelay) { }
+    int hitDelay,
+    Consumer<BrainShikigami> onAttack) {
+
+    /** A spec with nothing extra happening when it attacks. */
+    public ShikigamiSpec(String name, double maxHealth, double damage, double attackRange, int attackInterval,
+                         double targetRange, TargetingStrategy targeting, Movement movement, List<DespawnRule> rules,
+                         EndReaction onEnd, List<ShikigamiTrigger> triggers, Consumer<Mob> look, String model,
+                         java.util.Map<String, List<String>> animations, int hitDelay) {
+        this(name, maxHealth, damage, attackRange, attackInterval, targetRange, targeting, movement, rules, onEnd,
+            triggers, look, model, animations, hitDelay, self -> { });
+    }
+}

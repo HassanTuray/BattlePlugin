@@ -2,9 +2,12 @@ package com.hfturay.battleplugin.ability.abilities.domainabilities;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -21,6 +24,7 @@ import com.hfturay.battleplugin.shikigamiservice.EndReactions;
 import com.hfturay.battleplugin.shikigamiservice.FollowAndChase;
 import com.hfturay.battleplugin.shikigamiservice.Shikigami;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiSpec;
+import com.hfturay.battleplugin.shikigamiservice.ShikigamiTrigger;
 import com.hfturay.battleplugin.shikigamiservice.Targeting;
 import com.hfturay.battleplugin.shikigamiservice.TargetingStrategy;
 import com.hfturay.battleplugin.targetingservice.Targets;
@@ -45,6 +49,8 @@ import com.hfturay.battleplugin.targetingservice.Targets;
 public class SeattleMist extends DomainAbility {
     /** The BetterModel model: plugins/BetterModel/models/mist_stalker.bbmodel (copied by deploy). */
     private static final String MODEL = "mist_stalker";
+    /** Ticks between footsteps while it walks: half its 10-tick stride. */
+    private static final int STEP_TICKS = 5;
 
     public SeattleMist(BattlePlayer owner) {
         super(owner);
@@ -113,19 +119,34 @@ public class SeattleMist extends DomainAbility {
                 DespawnRules.ownerDied(),
                 DespawnRules.ownerOffline()),
             EndReactions.none(),
-            List.of(),
+            List.of(
+                // Spider steps while it walks: one for each set of three legs that steps, so two every half-second
+                // stride (the walk animation in make_mist_stalker.js).
+                new ShikigamiTrigger(
+                    self -> self.mob().getPathfinder().hasPath(),
+                    STEP_TICKS,
+                    self -> self.mob().getWorld().playSound(self.mob().getLocation(), Sound.ENTITY_SPIDER_STEP,
+                        SoundCategory.HOSTILE, 1.0f, 0.65f + ThreadLocalRandom.current().nextFloat() * 0.2f))),
             mob -> {
                 if (!(mob instanceof Zombie zombie)) {
                     return;
                 }
                 zombie.setBaby(false);
                 zombie.setShouldBurnInDay(false);
-                zombie.setSilent(true);             // it makes no sound at all, which is worse
+                zombie.setSilent(true);             // none of a zombie's own noises: its sounds are below
             },
             // Drawn as the Mist Stalker model (BetterModel). Without that plugin it stays a plain zombie.
             // The model's animations: idle, walk and death play on their own; attack is the one we trigger.
             MODEL,
             Map.of("attack", List.of("attack")),
-            settingInt("attack-hit-delay-ticks"));
+            settingInt("attack-hit-delay-ticks"),
+            this::screech);
+    }
+
+    /** As it lunges: a ghast's scream and an enderman's scream together, both pitched down. */
+    private void screech(BrainShikigami self) {
+        Location at = self.mob().getEyeLocation();
+        self.mob().getWorld().playSound(at, Sound.ENTITY_GHAST_SCREAM, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        self.mob().getWorld().playSound(at, Sound.ENTITY_ENDERMAN_SCREAM, SoundCategory.HOSTILE, 2.0f, 0.5f);
     }
 }

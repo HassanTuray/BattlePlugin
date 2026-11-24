@@ -255,7 +255,7 @@ function buildAnimations() {
 
   // walk: a tripod gait. Right front, left middle and right back step together, then the other three. Each step
   // swings a leg forward with its foot lifted, and back again on the ground. The body sways and bobs with each step.
-  const T = 0.8, F = 16, L = 7;
+  const T = 0.5, F = 16, L = 7;              // one full stride (both tripods) every half second
   const tripodA = [['r', 'f'], ['l', 'm'], ['r', 'b']];
   const tracks = [
     P('upper', [[0, 0, 0, 0], [T / 4, 0, 1, 0], [T / 2, 0, 0, 0], [3 * T / 4, 0, 1, 0], [T, 0, 0, 0]]),

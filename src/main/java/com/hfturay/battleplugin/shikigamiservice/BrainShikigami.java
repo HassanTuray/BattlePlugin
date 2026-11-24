@@ -196,6 +196,7 @@ public class BrainShikigami extends Shikigami {
         lastAttackAge = age;
         lastActiveAge = age;
         body.play("attack");
+        spec.onAttack().accept(this);
 
         if (spec.hitDelay() <= 0) {
             landHit(target);
