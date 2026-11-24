@@ -448,10 +448,22 @@ TitansWrath:
   range: 80
   width: 1.2
 
-# Seattle Mist (domain). For now it only summons the Mist Stalker, for testing: a gaunt black thing on six spindly
-# legs that runs at the nearest enemy (players, others' shikigami, hostile mobs) and follows you when there is none.
+# ---- Domain: Seattle Mist (amethyst shard) ----
+# A grey dome closes; a cutscene shows it filling with mist until almost nothing can be seen, then "The Mist is Here".
+# The mist stays for the whole domain and the Mist Stalker is let loose in it (for now it runs at the nearest enemy:
+# players, others' shikigami, hostile mobs; or follows you).
 SeattleMist:
   cooldown: 5
+  chaos-cost: 0               # chaos needed to cast it (100 for the real thing; 0 while testing)
+  radius: 20                  # radius of the dome, in blocks
+  thickness: 2                # how thick its wall is
+  form-ticks: 40              # how long the dome takes to close (40 = 2 seconds)
+  duration-ticks: 900         # how long the domain lasts after the cutscene (900 = 45 seconds)
+  mist-puffs: 260             # how many mist squares fill the dome: more = thicker mist
+  mist-size: 7                # how big each mist square is (blocks)
+  mist-opacity: 45            # how solid each one is (0 = invisible, 255 = solid white): higher = thicker mist
+  affects-caster: 1           # 1 = the mist covers you too (for testing); 0 = you see through it
+  # the Mist Stalker
   health: 40                  # its health points (2 = one heart)
   damage: 6                   # health points per strike (6 = 3 hearts)
   attack-range: 1.5           # how close it must be to strike (blocks, edge to edge)
@@ -461,8 +473,6 @@ SeattleMist:
   follow-distance: 5          # with nothing to chase it stays within this many blocks of you
   leash-distance: 40          # farther than this from you and it is teleported to you
   speed: 1.1                  # movement speed multiplier
-  lifetime-ticks: 1200        # despawns after this long (1200 = 60 seconds, 0 = never)
-  max-active: 1               # how many you can have out at once
 
 # Flying Raijin (Hassan). MarkRaijin fires the marking arrow; UseRaijin teleports to the mark.
 MarkRaijin:

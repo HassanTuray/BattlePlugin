@@ -162,7 +162,7 @@ public final class AbilityRegistry {
         register(AbilitySlot.DOMAIN, NeverendingNight.class);
         register(AbilitySlot.DOMAIN, TitansWrath.class);     // lent to the caster during Neverending Night
         register(AbilitySlot.DOMAIN, DummyDomain.class);
-        register(AbilitySlot.DOMAIN, SeattleMist.class);      // for now: summons the Mist Stalker, for testing
+        register(AbilitySlot.DOMAIN, SeattleMist.class);
 
         // maximum techniques (also on the amethyst shard; they cost chaos, see MaximumTechnique)
         register(AbilitySlot.DOMAIN, ExplosiveGravityBomb.class);

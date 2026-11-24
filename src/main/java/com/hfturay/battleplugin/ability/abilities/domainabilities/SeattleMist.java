@@ -4,70 +4,72 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
-import org.bukkit.util.Vector;
 
 import com.hfturay.battleplugin.BattlePlugin;
-import com.hfturay.battleplugin.ability.Ability;
-import com.hfturay.battleplugin.ability.Activation;
 import com.hfturay.battleplugin.ability.RequiresSettings;
 import com.hfturay.battleplugin.battleplayer.BattlePlayer;
+import com.hfturay.battleplugin.domainservice.DomainService;
+import com.hfturay.battleplugin.domainservice.seattlemist.SeattleMistEffects;
 import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 import com.hfturay.battleplugin.shikigamiservice.DespawnRules;
 import com.hfturay.battleplugin.shikigamiservice.EndReactions;
 import com.hfturay.battleplugin.shikigamiservice.FollowAndChase;
+import com.hfturay.battleplugin.shikigamiservice.Shikigami;
 import com.hfturay.battleplugin.shikigamiservice.ShikigamiSpec;
-import com.hfturay.battleplugin.shikigamiservice.TargetingStrategy;
 import com.hfturay.battleplugin.shikigamiservice.Targeting;
+import com.hfturay.battleplugin.shikigamiservice.TargetingStrategy;
 import com.hfturay.battleplugin.targetingservice.Targets;
 
 /**
- * Domain: Seattle Mist (on the amethyst shard). The finished domain will fill with fog, hide everyone inside from one
- * another (but not from the caster), and set the Mist Stalker on one chosen player, who alone can see it.
+ * Domain: Seattle Mist (on the amethyst shard). A grey dome closes, and a cutscene shows it filling with mist until
+ * almost nothing can be seen; then "The Mist is Here" (see SeattleMistEffects). The mist stays for the whole domain,
+ * and the Mist Stalker is let loose in it.
  *
- * For now this only summons the Mist Stalker, for testing it: a gaunt black thing about 4 blocks tall on six spindly
- * legs, with a jutting neck and tiny white eyes (models/mist_stalker.bbmodel, made by models/tools/make_mist_stalker.js).
- * It runs at the nearest enemy (a player, another player's shikigami or a hostile mob) and strikes when it reaches
- * them; with nobody about it follows its caster. Everyone can see it for now.
- * Every number comes from abilities.yml (SeattleMist section), read when it is used.
+ * The Mist Stalker: a gaunt black thing about 4 blocks tall on six spindly legs, with a jutting neck and tiny white eyes
+ * (models/mist_stalker.bbmodel, made by models/tools/make_mist_stalker.js). For now it runs at the nearest enemy (a
+ * player, another player's shikigami or a hostile mob) and strikes when it reaches them, or follows the caster, and
+ * everyone can see it. Later it will hunt one chosen player, who alone can see it.
+ *
+ * For testing, the mist also covers the caster (affects-caster: 1) and the domain costs no chaos (chaos-cost: 0).
+ * Every number comes from abilities.yml (SeattleMist section), read when it is cast.
  */
-@RequiresSettings({ "cooldown", "health", "damage", "attack-range", "attack-interval-ticks", "attack-hit-delay-ticks",
-    "target-range", "follow-distance", "leash-distance", "speed", "lifetime-ticks", "max-active" })
-public class SeattleMist extends Ability {
+@RequiresSettings({ "cooldown", "chaos-cost", "radius", "thickness", "form-ticks", "duration-ticks",
+    "mist-puffs", "mist-size", "mist-opacity", "affects-caster",
+    "health", "damage", "attack-range", "attack-interval-ticks", "attack-hit-delay-ticks",
+    "target-range", "follow-distance", "leash-distance", "speed" })
+public class SeattleMist extends DomainAbility {
     /** The BetterModel model: plugins/BetterModel/models/mist_stalker.bbmodel (copied by deploy). */
     private static final String MODEL = "mist_stalker";
 
     public SeattleMist(BattlePlayer owner) {
         super(owner);
 
-        this.setDisplayName("Seattle Mist");
+        this.setDisplayName("Domain: Seattle Mist");
     }
 
     @Override
-    protected String blockedReason() {
-        return BattlePlugin.getInstance().getShikigamiService()
-            .summonBlockedReason(owner, "Mist Stalker", settingInt("max-active"));
+    protected DomainService.Spec buildSpec() {
+        SeattleMistEffects.Settings settings = new SeattleMistEffects.Settings(
+            settingInt("mist-puffs"), setting("mist-size"), settingInt("mist-opacity"), setting("affects-caster") > 0);
+        SeattleMistEffects effects = new SeattleMistEffects(settings, this::releaseStalker);
+        double radius = setting("radius");
+
+        return new DomainService.Spec("Seattle Mist", radius, setting("thickness"),
+            settingInt("form-ticks"), settingInt("duration-ticks"), Material.LIGHT_GRAY_CONCRETE,
+            (int) tuning().number(getId(), "night-vision-amplifier", 0), () -> effects.scene(radius), effects);
     }
 
-    @Override
-    protected Activation onActivate() {
-        Player player = owner.getPlayer();
-
-        // A few blocks in front of the caster, on the flat (it is big), facing them.
-        Vector ahead = player.getLocation().getDirection().setY(0);
-        if (ahead.lengthSquared() < 1.0e-6) {
-            ahead = new Vector(0, 0, 1);
-        }
-        Location where = player.getLocation().add(ahead.normalize().multiply(4));
-        where.setDirection(player.getLocation().getDirection().multiply(-1));
-
+    /** Lets the Mist Stalker loose at this spot. It lasts until the domain ends (or something kills it first). */
+    private Shikigami releaseStalker(Location where) {
         Zombie zombie = where.getWorld().spawn(where, Zombie.class);
-        BattlePlugin.getInstance().getShikigamiService().add(new BrainShikigami(zombie, owner, spec()));
-        return Activation.USED;
+        BrainShikigami stalker = new BrainShikigami(zombie, owner, stalkerSpec());
+        BattlePlugin.getInstance().getShikigamiService().add(stalker);
+        return stalker;
     }
 
     /**
@@ -96,7 +98,7 @@ public class SeattleMist extends Ability {
         };
     }
 
-    private ShikigamiSpec spec() {
+    private ShikigamiSpec stalkerSpec() {
         return new ShikigamiSpec(
             "Mist Stalker",
             setting("health"),
@@ -106,8 +108,8 @@ public class SeattleMist extends Ability {
             setting("target-range"),
             nearestPrey(),
             new FollowAndChase(setting("follow-distance"), setting("leash-distance"), setting("speed")),
+            // no time limit of its own: the domain takes it away when it ends
             List.of(
-                DespawnRules.timeout(settingInt("lifetime-ticks")),
                 DespawnRules.ownerDied(),
                 DespawnRules.ownerOffline()),
             EndReactions.none(),
