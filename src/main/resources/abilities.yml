@@ -448,6 +448,22 @@ TitansWrath:
   range: 80
   width: 1.2
 
+# Seattle Mist (domain). For now it only summons the Mist Stalker, for testing: a gaunt black thing on six spindly
+# legs that runs at the nearest enemy (players, others' shikigami, hostile mobs) and follows you when there is none.
+SeattleMist:
+  cooldown: 5
+  health: 40                  # its health points (2 = one heart)
+  damage: 6                   # health points per strike (6 = 3 hearts)
+  attack-range: 1.5           # how close it must be to strike (blocks, edge to edge)
+  attack-interval-ticks: 30   # time between strikes (20 = 1 second)
+  attack-hit-delay-ticks: 6   # the strike lands this long after its attack animation starts (the skull darts in at 0.3 s)
+  target-range: 24            # how far away it notices prey
+  follow-distance: 5          # with nothing to chase it stays within this many blocks of you
+  leash-distance: 40          # farther than this from you and it is teleported to you
+  speed: 1.1                  # movement speed multiplier
+  lifetime-ticks: 1200        # despawns after this long (1200 = 60 seconds, 0 = never)
+  max-active: 1               # how many you can have out at once
+
 # Flying Raijin (Hassan). MarkRaijin fires the marking arrow; UseRaijin teleports to the mark.
 MarkRaijin:
   cooldown: 1
