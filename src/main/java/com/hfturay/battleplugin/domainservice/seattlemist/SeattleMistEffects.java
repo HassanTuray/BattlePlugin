@@ -1,13 +1,17 @@
 package com.hfturay.battleplugin.domainservice.seattlemist;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -23,7 +27,7 @@ import com.hfturay.battleplugin.cutsceneservice.Scenes;
 import com.hfturay.battleplugin.domainservice.DomainService.Behavior;
 import com.hfturay.battleplugin.domainservice.DomainService.Domain;
 import com.hfturay.battleplugin.domainservice.DomainService.Phase;
-import com.hfturay.battleplugin.shikigamiservice.Shikigami;
+import com.hfturay.battleplugin.shikigamiservice.BrainShikigami;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -43,15 +47,33 @@ import net.kyori.adventure.title.Title;
  * always even (the shader reads 2k and 2k - 1 the same, so the mist does not flicker). The server never applies the
  * blindness itself, and takes it off each player's game when they leave the dome or the domain ends.
  *
+ * The chosen one: when the domain begins, one player caught in it is picked at random. Only they can see the Mist
+ * Stalker (everyone else has it hidden: the mob, its model and its sounds), and it hunts only them. If they die, leave
+ * the dome or log off, another player in the dome is chosen, so there is never more than one at a time. With nobody to
+ * choose, the stalker is hidden from everyone.
+ *
  * One of these is made for every cast, with the numbers read from abilities.yml at that moment.
  */
 public final class SeattleMistEffects implements Behavior {
 
     /**
      * The numbers. thickness: how thick the mist is during the domain (0 = none, 1 = the thickest the pack draws, where
-     * anything 10 blocks away is gone). affectsCaster: false leaves the caster seeing clearly.
+     * anything 10 blocks away is gone). affectsCaster: false leaves the caster seeing clearly. huntsCaster: true puts
+     * the caster in the draw for the chosen one too (for testing).
      */
-    public record Settings(double thickness, boolean affectsCaster) { }
+    public record Settings(double thickness, boolean affectsCaster, boolean huntsCaster) { }
+
+    /**
+     * Lets the Mist Stalker loose at a spot, hunting whoever the given supplier says is the chosen one right now
+     * (SeattleMist knows how to make one).
+     */
+    @FunctionalInterface
+    public interface StalkerMaker {
+        BrainShikigami release(Location where, Supplier<Player> chosen);
+    }
+
+    /** How often everyone's view of the stalker is checked again (players arriving, the chosen one changing). */
+    private static final int VISIBILITY_TICKS = 10;
 
     /** The cutscene: the mist rises over MIST_TICKS, then the words appear; the scene ends at SCENE_TICKS. */
     private static final int MIST_TICKS = 160;
@@ -92,17 +114,23 @@ public final class SeattleMistEffects implements Behavior {
     }
 
     private final Settings settings;
-    /** Lets the Mist Stalker loose (SeattleMist knows how to make one). */
-    private final Function<Location, Shikigami> stalker;
+    private final StalkerMaker stalker;
 
     private Domain domain;
     /** Everyone whose game currently has the mist switched on. */
     private final Set<UUID> misted = new HashSet<>();
-    private Shikigami released;
+    private BrainShikigami released;
+    /** The one player who can see the stalker and is hunted by it, or null. */
+    private UUID chosen;
 
-    public SeattleMistEffects(Settings settings, Function<Location, Shikigami> stalker) {
+    public SeattleMistEffects(Settings settings, StalkerMaker stalker) {
         this.settings = settings;
         this.stalker = stalker;
+    }
+
+    /** The chosen one, if they are still around; the stalker asks this every time it picks its target. */
+    public Player chosen() {
+        return chosen == null ? null : Bukkit.getPlayer(chosen);
     }
 
     // ---- the cutscene ----
@@ -184,17 +212,77 @@ public final class SeattleMistEffects implements Behavior {
         d.world().playSound(d.center(), Sound.WEATHER_RAIN_ABOVE, SoundCategory.MASTER, 2.0f, 0.5f);
     }
 
-    @Override
-    public void onActive(Domain d) {
-        released = stalker.apply(d.center().add(0.5, 0, 0.5));
+    // ---- the chosen one ----
+
+    /** Who may be chosen: players caught in the dome who are alive, playing and still inside (the caster only if huntsCaster). */
+    private List<Player> candidates(Domain d) {
+        List<Player> candidates = new ArrayList<>();
+        for (Player player : d.caughtPlayers()) {
+            boolean caster = player.getUniqueId().equals(d.caster().getUniqueId());
+            if ((caster && !settings.huntsCaster()) || player.isDead() || player.getGameMode() == GameMode.SPECTATOR
+                || !isInDome(player)) {
+                continue;
+            }
+            candidates.add(player);
+        }
+        return candidates;
     }
 
-    /** During the domain: the mist over everyone in the dome (the caster too, if affects-caster), off for anyone who left. */
+    /**
+     * Keeps the chosen one while they are still a candidate; otherwise picks another at random (or nobody). When it
+     * changes, the stalker is shown to the new one and hidden from the old.
+     */
+    private void choose(Domain d) {
+        List<Player> candidates = candidates(d);
+        Player current = chosen();
+        if (current != null && candidates.contains(current)) {
+            return;
+        }
+        UUID before = chosen;
+        Player next = candidates.isEmpty() ? null : candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+        chosen = next == null ? null : next.getUniqueId();
+        if (Objects.equals(before, chosen)) {
+            return;
+        }
+        if (next != null) {
+            // only they hear that something has noticed them
+            next.playSound(next.getLocation(), Sound.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 1.0f, 0.6f);
+            next.playSound(next.getLocation(), Sound.AMBIENT_CAVE, SoundCategory.HOSTILE, 1.0f, 0.5f);
+        }
+        showStalkerToChosen(d);
+    }
+
+    /** Only the chosen one sees the stalker; it is hidden from every other player in the world. */
+    private void showStalkerToChosen(Domain d) {
+        if (released == null || !released.mob().isValid()) {
+            return;
+        }
+        for (Player player : d.world().getPlayers()) {
+            released.body().setVisibleTo(player, player.getUniqueId().equals(chosen));
+        }
+    }
+
+    @Override
+    public void onActive(Domain d) {
+        released = stalker.release(d.center().add(0.5, 0, 0.5), this::chosen);
+        choose(d);
+        showStalkerToChosen(d);         // hidden from everyone else from its first tick, even with nobody chosen
+    }
+
+    /**
+     * During the domain: the chosen one (picked again if they are gone) and who can see the stalker; the mist over
+     * everyone in the dome (the caster too, if affects-caster), and off for anyone who left.
+     */
     @Override
     public void onTick(Domain d) {
         if (d.phase() != Phase.ACTIVE) {
             return;
         }
+        choose(d);
+        if (d.phaseTicks() % VISIBILITY_TICKS == 0) {
+            showStalkerToChosen(d);     // catches players who arrived since
+        }
+
         Set<UUID> inside = new HashSet<>();
         for (Player player : d.world().getPlayers()) {
             boolean caster = player.getUniqueId().equals(d.caster().getUniqueId());
@@ -220,6 +308,7 @@ public final class SeattleMistEffects implements Behavior {
             released.kill();                // it fades with the mist
             released = null;
         }
+        chosen = null;
         clearAll();
     }
 

@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Mob;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import com.hfturay.battleplugin.BattlePlugin;
@@ -83,6 +84,20 @@ final class BetterModelBody implements Body {
         }
         int index = rotation.merge(animation, 1, Integer::sum) - 1;
         tracker.animate(options.get(index % options.size()), AnimationModifier.DEFAULT_WITH_PLAY_ONCE);
+    }
+
+    /** The mob and the model both: BetterModel draws the model for each player separately, so it hides it per player. */
+    @Override
+    public void setVisibleTo(Player player, boolean visible) {
+        Body.super.setVisibleTo(player, visible);
+        if (tracker.isClosed()) {
+            return;
+        }
+        if (visible) {
+            tracker.show(BukkitAdapter.adapt(player));
+        } else {
+            tracker.hide(BukkitAdapter.adapt(player));
+        }
     }
 
     @Override

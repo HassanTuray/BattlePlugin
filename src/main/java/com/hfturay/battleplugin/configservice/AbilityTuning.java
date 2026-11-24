@@ -53,7 +53,7 @@ public final class AbilityTuning {
         "bomb-interval-ticks", "bomb-speed", "bomb-gravity", "bomb-hitbox", "bomb-max-ticks", "bomb-radius", "bomb-damage", "bomb-knockback",
         "grow-ticks", "guard-range",
         // Domain expansions
-        "mist-thickness", "affects-caster",
+        "mist-thickness", "affects-caster", "stalker-hunts-caster",
         "dash-speed", "dash-delay-ticks", "hover-height", "hover-behind", "learn-damage", "learn-window-ticks", "scan-ticks", "scan-distance", "chaos-cost", "form-ticks", "tower-height", "flame-height", "endermen-count", "phantom-count", "warden-count",
         "mobs-target-caster", "charge-ticks",
         // Explosive Gravity Bomb
