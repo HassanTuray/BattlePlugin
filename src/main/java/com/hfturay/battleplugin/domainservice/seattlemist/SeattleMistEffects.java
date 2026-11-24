@@ -27,6 +27,8 @@ import com.hfturay.battleplugin.shikigamiservice.Shikigami;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.title.Title;
 
 /**
@@ -57,6 +59,37 @@ public final class SeattleMistEffects implements Behavior {
     private static final int SCENE_TICKS = 230;
     /** Blindness ticks for full thickness (the game treats 20 or more as fully blind). */
     private static final int FULL = 20;
+
+    /**
+     * "The Mist is Here": black, bold, with a space between letters (three between words) so they do not run together,
+     * and no text shadow (a title always gets one, and a dark shadow under black letters smudges them). The shadow is
+     * switched off by giving it a see-through colour, shadow_color 0, which Minecraft 1.21.4 and later understand. The
+     * plugin is built against an older API with no way to say that, so the words are written in Minecraft's own text
+     * format and read by the server, whose newer Adventure library knows shadow_color.
+     */
+    private static final Component WORDS = words(spaced("The Mist is Here"));
+
+    /** The words without a shadow, or (if the server cannot read that) plain black bold words with one. */
+    private static Component words(String text) {
+        try {
+            return GsonComponentSerializer.gson().deserialize(
+                "{\"text\":\"" + text + "\",\"color\":\"black\",\"bold\":true,\"shadow_color\":0}");
+        } catch (RuntimeException e) {
+            return Component.text(text, NamedTextColor.BLACK, TextDecoration.BOLD);
+        }
+    }
+
+    /** One space between letters and three between words: "T h e   M i s t". */
+    private static String spaced(String words) {
+        StringBuilder out = new StringBuilder();
+        for (String word : words.split(" ")) {
+            if (out.length() > 0) {
+                out.append("   ");
+            }
+            out.append(String.join(" ", word.split("")));
+        }
+        return out.toString();
+    }
 
     private final Settings settings;
     /** Lets the Mist Stalker loose (SeattleMist knows how to make one). */
@@ -102,7 +135,7 @@ public final class SeattleMistEffects implements Behavior {
             });
         }
         scene.at(WORDS_TICK, ctx -> {
-            Title words = Title.title(Component.text("The Mist is Here", NamedTextColor.BLACK), Component.empty(),
+            Title words = Title.title(WORDS, Component.empty(),
                 Title.Times.times(Duration.ofMillis(600), Duration.ofSeconds(3), Duration.ofMillis(1200)));
             for (Player viewer : ctx.viewers()) {
                 viewer.showTitle(words);
